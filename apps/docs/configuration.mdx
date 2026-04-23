@@ -1,0 +1,43 @@
+---
+title: "Configuration"
+description: "Configure TPL via your package.json."
+---
+
+TPL is zero-config by default. Add a `"tpl"` key to your `package.json` to customize behavior.
+
+## Options
+
+```json package.json
+{
+  "tpl": {
+    "output": "lib/tpl.ts",
+    "pattern": "**/*.tpl.md",
+    "ignore": ["src/vendor/**"]
+  }
+}
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `output` | `string` | `"lib/tpl.ts"` | Relative path for the generated file |
+| `pattern` | `string` | `"**/*.tpl.md"` | Glob pattern for finding prompt files |
+| `ignore` | `string[]` | `[]` | Additional glob patterns to ignore |
+
+## Defaults
+
+By default, TPL always ignores:
+- `**/node_modules/**`
+- `**/dist/**`
+- `**/.git/**`
+
+These cannot be overridden.
+
+## Gitignore recommendation
+
+Add the generated file to `.gitignore`:
+
+```gitignore
+lib/tpl.ts
+```
+
+It's auto-generated and should be regenerated at build time.

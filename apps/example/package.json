@@ -1,0 +1,20 @@
+{
+  "name": "example",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tpl watch",
+    "generate": "tpl generate",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "the-prompting-library": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  },
+  "tpl": {
+    "output": "lib/tpl"
+  }
+}

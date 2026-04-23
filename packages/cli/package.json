@@ -1,0 +1,55 @@
+{
+  "name": "the-prompting-library",
+  "version": "0.1.1",
+  "description": "The Prompting Library — drop .tpl.md files, get fully-typed TypeScript functions.",
+  "type": "module",
+  "bin": {
+    "tpl": "dist/index.cjs"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "bun test",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "prompt",
+    "prompting",
+    "llm",
+    "ai",
+    "codegen",
+    "typescript",
+    "template",
+    "type-safe"
+  ],
+  "author": {
+    "name": "Timur Kramár",
+    "url": "https://github.com/timurkramar"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/timurkramar/tpl.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://github.com/timurkramar/tpl#readme",
+  "bugs": {
+    "url": "https://github.com/timurkramar/tpl/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@tpl/core": "workspace:*",
+    "@types/node": "^25.6.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "chokidar": "^3.6.0",
+    "commander": "^12.0.0"
+  }
+}
