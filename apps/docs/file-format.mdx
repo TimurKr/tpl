@@ -1,0 +1,56 @@
+---
+title: "File Format"
+description: "The .tpl.md file format reference."
+---
+
+## Basic structure
+
+```markdown
+---
+description: Optional human-readable description
+---
+
+Your prompt content goes here. Use {{variableName}} for variables.
+```
+
+The frontmatter is **optional**. A `.tpl.md` file with just content is valid.
+
+## Variables
+
+Use `{{camelCase}}` syntax:
+
+```markdown
+Write a welcome email to {{userName}} for {{productName}}.
+```
+
+All variables become required parameters in the generated function. Variables are:
+- Deduplicated (same name used multiple times = one parameter)
+- Type `string` (all variables are strings)
+- Required (no optional variables — keep it simple)
+
+## Includes
+
+Use `{{> path/to/prompt}}` to include another prompt:
+
+```markdown
+{{> shared/base-persona}}
+
+Now do the actual task using {{userInput}}.
+```
+
+- Includes resolve from the **project root** (where your `package.json` is)
+- `{{> shared/base-persona}}` → `<projectRoot>/shared/base-persona.tpl.md`
+- Includes are resolved **at code generation time**, not runtime
+- Circular includes are detected and reported as errors
+
+## Frontmatter
+
+Only one field is currently used:
+
+```yaml
+---
+description: Human-readable description of this prompt
+---
+```
+
+The description appears as a JSDoc comment on the generated function.

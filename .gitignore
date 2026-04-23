@@ -1,0 +1,10 @@
+node_modules/
+.cache/
+*.tsbuildinfo
+
+# Package build output — rebuilt on publish
+packages/*/dist/
+
+# Generated files — rebuilt at dev/build time
+lib/tpl/
+apps/example/lib/tpl/

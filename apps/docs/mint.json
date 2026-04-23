@@ -1,0 +1,49 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "TPL — The Prompting Library",
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg"
+  },
+  "favicon": "/favicon.svg",
+  "colors": {
+    "primary": "#6366f1",
+    "light": "#818cf8",
+    "dark": "#4f46e5"
+  },
+  "topbarLinks": [
+    {
+      "name": "GitHub",
+      "url": "https://github.com/timurkramar/tpl"
+    }
+  ],
+  "navigation": [
+    {
+      "group": "Getting Started",
+      "pages": [
+        "introduction",
+        "quickstart",
+        "how-it-works"
+      ]
+    },
+    {
+      "group": "Reference",
+      "pages": [
+        "file-format",
+        "cli-reference",
+        "configuration",
+        "includes"
+      ]
+    },
+    {
+      "group": "Guides",
+      "pages": [
+        "guides/nextjs",
+        "guides/collision-detection"
+      ]
+    }
+  ],
+  "footerSocials": {
+    "x": "https://x.com/timurkramar"
+  }
+}

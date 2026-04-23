@@ -1,0 +1,63 @@
+---
+title: "Includes"
+description: "Share prompt snippets across files."
+---
+
+Includes let you define reusable prompt snippets and compose them into larger prompts.
+
+## Syntax
+
+```markdown
+{{> path/to/prompt}}
+```
+
+## Example
+
+```markdown src/shared/base-persona.tpl.md
+You are a helpful, concise, and professional AI assistant.
+```
+
+```markdown src/features/email.tpl.md
+{{> src/shared/base-persona}}
+
+Write a welcome email to {{userName}}.
+```
+
+The generated function will have the base persona inlined at code generation time.
+
+## Resolution
+
+Includes always resolve from the **project root** — the directory containing your `package.json`.
+
+```
+{{> shared/base-persona}}
+→ <projectRoot>/shared/base-persona.tpl.md
+```
+
+This is unambiguous regardless of where the including file lives in the directory tree.
+
+## Nested includes
+
+Includes can themselves include other files:
+
+```markdown base.tpl.md
+You are professional.
+```
+
+```markdown persona.tpl.md
+{{> base}}
+Always respond in {{language}}.
+```
+
+```markdown email.tpl.md
+{{> persona}}
+Write to {{userName}}.
+```
+
+## Circular include detection
+
+TPL detects circular includes and reports them with the full include chain:
+
+```
+Error: Circular include detected: email → persona → email
+```

@@ -1,0 +1,58 @@
+---
+title: "CLI Reference"
+description: "tpl command reference."
+---
+
+## tpl generate
+
+Generate `lib/tpl.ts` from all `.tpl.md` files (one-shot).
+
+```bash
+tpl generate
+# or
+tpl g
+```
+
+Options:
+
+| Option | Description |
+|--------|-------------|
+| `--cwd <dir>` | Working directory (defaults to `process.cwd()`) |
+| `--output <path>` | Override the output file path |
+
+Use in CI / build scripts:
+
+```json
+{
+  "scripts": {
+    "build": "tpl generate && next build"
+  }
+}
+```
+
+## tpl watch
+
+Watch for `.tpl.md` changes and regenerate automatically (50ms debounce).
+
+```bash
+tpl watch
+# or
+tpl w
+```
+
+Options:
+
+| Option | Description |
+|--------|-------------|
+| `--cwd <dir>` | Working directory (defaults to `process.cwd()`) |
+| `--output <path>` | Override the output file path |
+
+Recommended for dev scripts:
+
+```json
+{
+  "scripts": {
+    "dev": "tpl watch & next dev"
+  }
+}
+```
