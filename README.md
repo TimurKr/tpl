@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="logo.png" alt="TPL logo" width="240" />
+</p>
+
 # TPL — The Prompting Library
 
 **Drop `.tpl.md` files anywhere. Get fully-typed TypeScript functions.**
