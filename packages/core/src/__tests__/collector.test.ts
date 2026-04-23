@@ -73,6 +73,17 @@ describe("collector", () => {
       expect(templates[0]!.functionName).toBe("real");
     });
 
+    it("finds .tpl.mdx, .tpl.txt, and .tpl.html files", async () => {
+      await writeTemplate("src/a.tpl.mdx", "MDX prompt {{topic}}");
+      await writeTemplate("src/b.tpl.txt", "Plain text prompt {{input}}");
+      await writeTemplate("src/c.tpl.html", "<p>HTML prompt {{name}}</p>");
+
+      const templates = await collect({ rootDir, outputDir: outputDir() });
+      expect(templates).toHaveLength(3);
+      const names = templates.map((t) => t.functionName).sort();
+      expect(names).toEqual(["a", "b", "c"]);
+    });
+
     it("parses templates correctly", async () => {
       await writeTemplate(
         "src/welcome.tpl.md",

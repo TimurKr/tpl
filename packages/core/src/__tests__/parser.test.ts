@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { writeFile, mkdir, rm } from "fs/promises";
 import { join } from "path";
 import { tmpdir } from "os";
-import { parseTemplate, deriveFunctionName } from "../parser.js";
+import { parseTemplate, deriveFunctionName, SUPPORTED_EXTENSIONS } from "../parser.js";
 
 describe("deriveFunctionName", () => {
   it("converts single-segment kebab-case to camelCase", () => {
@@ -25,6 +25,25 @@ describe("deriveFunctionName", () => {
 
   it("converts two-word kebab", () => {
     expect(deriveFunctionName("search-query.tpl.md")).toBe("searchQuery");
+  });
+
+  it("strips .tpl.mdx extension", () => {
+    expect(deriveFunctionName("welcome-email.tpl.mdx")).toBe("welcomeEmail");
+  });
+
+  it("strips .tpl.txt extension", () => {
+    expect(deriveFunctionName("classify.tpl.txt")).toBe("classify");
+  });
+
+  it("strips .tpl.html extension", () => {
+    expect(deriveFunctionName("order-confirmation.tpl.html")).toBe("orderConfirmation");
+  });
+
+  it("exports the supported extensions list", () => {
+    expect(SUPPORTED_EXTENSIONS).toContain("md");
+    expect(SUPPORTED_EXTENSIONS).toContain("mdx");
+    expect(SUPPORTED_EXTENSIONS).toContain("txt");
+    expect(SUPPORTED_EXTENSIONS).toContain("html");
   });
 });
 

@@ -6,11 +6,13 @@ import type { ParsedTemplate } from "./types.js";
 const VARIABLE_RE = /\{\{([^>}][^}]*)\}\}/g;
 const INCLUDE_RE = /\{\{>\s*([^}]+)\}\}/g;
 
+/** Supported file extensions for .tpl.* files */
+export const SUPPORTED_EXTENSIONS = ["md", "mdx", "txt", "html"] as const;
+
 export function deriveFunctionName(filePath: string): string {
   const base = basename(filePath);
-  const stem = base.endsWith(".tpl.md")
-    ? base.slice(0, -".tpl.md".length)
-    : base;
+  // Strip .tpl.<ext> for any supported extension
+  const stem = base.replace(/\.tpl\.[^.]+$/, "");
   return stem.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
 }
 

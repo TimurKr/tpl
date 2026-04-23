@@ -5,7 +5,7 @@ import { parseTemplate } from "./parser.js";
 import { generateFiles } from "./codegen.js";
 import type { ParsedTemplate, GenerateOptions } from "./types.js";
 
-const DEFAULT_PATTERN = "**/*.tpl.md";
+const DEFAULT_PATTERN = "**/*.tpl.{md,mdx,txt,html}";
 const DEFAULT_IGNORE = ["**/node_modules/**", "**/dist/**", "**/.git/**"];
 
 export async function collect(options: GenerateOptions): Promise<ParsedTemplate[]> {
