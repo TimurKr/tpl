@@ -1,11 +1,11 @@
 ---
 title: "Quickstart"
-description: "Get TPL running in under 2 minutes."
+description: "Get TPL running in under 2 minutes — watcher first, then templates, then CI."
 ---
 
 ## The idea in one minute
 
-Write a `.tpl.md` file with `{{variables}}`. TPL generates a typed TypeScript function from it. Edit the Markdown, the function updates. That's it.
+Write a `.tpl.md` file with `{{variables}}`. TPL generates a typed TypeScript function from it. **`tpl watch`** keeps output fresh while you edit; **`tpl generate`** runs in CI and production builds.
 
 ```markdown summarize.tpl.md
 Summarize the following text in {{wordCount:number}} words or fewer.
@@ -14,8 +14,10 @@ Focus on {{focusArea|key decisions}}.
 Text: {{inputText}}
 ```
 
+With strict ESM (`Node16` / `NodeNext`), import using a **`.js` extension** (TypeScript maps it to the `.ts` file):
+
 ```typescript
-import { prompts } from "./lib/tpl/index.ts";
+import { prompts } from "./lib/tpl/index.js";
 
 const prompt = prompts.summarize({
   wordCount: 50,
@@ -26,133 +28,16 @@ const prompt = prompts.summarize({
 
 ---
 
-## Step 1 — Let your AI agent do it
+## Recommended setup (in order)
 
-Paste this into Cursor, Claude, or Copilot. It finds every inline prompt in your codebase, extracts them into `.tpl.md` files, and refactors all call sites.
-
-<Accordion title="📋 Copy the AI adoption prompt">
-
-```text
-You are helping adopt TPL (The Prompting Library) in this codebase.
-
-TPL turns scattered inline prompt strings into typed TypeScript functions. Drop
-.tpl.md files next to the code that uses them, run `tpl generate`, and get
-fully-typed functions — wrong variables become compile errors, not runtime surprises.
-
-───────────────────────────────────────────
-STEP 1 — INSTALL
-───────────────────────────────────────────
-
-  npm install -D the-prompting-library
-
-Update package.json scripts. Check if a "dev" script already exists:
-- If yes, prepend `tpl watch &` to it (e.g. `"dev": "tpl watch & next dev"`)
-- If no, create one: `"dev": "tpl watch"`
-
-Also add tpl generate to the build script:
-
-  "build": "tpl generate && <existing-build-command>"
-
-───────────────────────────────────────────
-STEP 2 — FIND ALL INLINED PROMPTS
-───────────────────────────────────────────
-
-Search for inline prompt strings: template literals or strings assigned to
-variables named prompt, systemPrompt, userPrompt, systemMessage, instructions,
-or passed directly to AI SDK calls (generateText, streamText, openai, anthropic,
-chat.completions.create, etc.), or inside messages arrays ({ role: "system", content: "..." }).
-
-───────────────────────────────────────────
-STEP 3 — EXTRACT INTO .tpl.md FILES
-───────────────────────────────────────────
-
-For each inlined prompt:
-
-1. Create a .tpl.md file in the SAME DIRECTORY as the source file that uses it.
-   Use kebab-case: src/features/email/welcome-email.tpl.md
-
-2. Paste the prompt. Replace interpolated expressions with {{camelCase}} placeholders.
-
-3. Add type hints for non-string values: {{count:number}} {{active:boolean}} {{tags:string[]}}
-
-4. Use defaults for optional values: {{note|}} or {{note|fallback text}}
-
-5. Use conditionals for optional sections:
-   {{#if note}}
-   **Note:** {{note}}
-   {{/if}}
-
-6. Optional frontmatter:
-   ---
-   description: What this prompt does
-   ---
-
-EXAMPLE
-
-Before (inline in route.ts):
-  const prompt = `Write a welcome email to ${user.name}. Plan: ${plan}.`;
-
-After (src/features/email/welcome-email.tpl.md):
-  ---
-  description: Welcome email for new users
-  ---
-  Write a welcome email to {{userName}}. Plan: {{planType}}.
-
-───────────────────────────────────────────
-STEP 4 — SHARED CONTENT
-───────────────────────────────────────────
-
-Extract repeated content (base persona, safety guidelines, output format) once:
-
-  src/shared/base-persona.tpl.md:
-    You are a helpful, concise assistant.
-
-Reference by name in any other template:
-  {{> basePersona}}
-  Write a welcome email to {{userName}}...
-
-Partials with no variables are rendered automatically — they don't appear in the interface.
-
-───────────────────────────────────────────
-STEP 5 — GENERATE AND REFACTOR
-───────────────────────────────────────────
-
-  npx tpl generate
-
-Then replace each inline prompt with the generated typed function:
-
-Before:
-  const prompt = `Write a welcome email to ${user.name}...`;
-
-After:
-  import { prompts } from "./lib/tpl/index.ts";
-  const prompt = prompts.welcomeEmail({ userName: user.name, planType: plan });
-
-───────────────────────────────────────────
-STEP 6 — VERIFY
-───────────────────────────────────────────
-
-  npx tpl generate   → all prompts listed, no errors
-  tsc --noEmit       → no type errors at call sites
-```
-
-</Accordion>
-
----
-
-## Step 2 — Or do it manually
-
-If you prefer to set it up yourself:
-
-**Install:**
+### 1. Install
 
 ```bash
 npm install -D the-prompting-library
-# or
-bun add -D the-prompting-library
+# or: bun add -D the-prompting-library
 ```
 
-**Add to your scripts:**
+### 2. Add `dev` and `build` scripts
 
 ```json package.json
 {
@@ -163,43 +48,88 @@ bun add -D the-prompting-library
 }
 ```
 
-**Create a `.tpl.md` file next to the code that uses it:**
+- **`dev`:** run `tpl watch` alongside your dev server (or `tpl watch` alone if you have no other process).
+- **`build`:** run `tpl generate` before your compiler or bundler so CI and clean clones always have fresh output.
 
-```markdown src/features/summarize/summarize.tpl.md
----
-description: Summarize a piece of text
----
-
-Summarize the following text in {{wordCount:number}} words or fewer. Focus on {{focusArea|key decisions}}.
-
-Text: {{inputText}}
-```
-
-**Run the watcher:**
+### 3. Start the listener
 
 ```bash
-npx tpl watch
+npm run dev
+# or: npx tpl watch
 ```
 
-```
-👁  Watching for .tpl.md changes in /your/project
-✓ Generated 1 prompt(s) → lib/tpl/
-```
+You should see a success line with the output directory (default `lib/tpl/`).
 
-**Use the generated function:**
+### 4. Add your first `.tpl.md` and verify
+
+Create e.g. `src/features/summarize/summarize.tpl.md`, save, and check the terminal for a quick regenerate. Open `lib/tpl/`: you should see new modules plus `index.ts`. If that works, the loop is correct.
+
+### 5. Import in application code
 
 ```typescript
-import { prompts } from "./lib/tpl/index.ts";
-
-const prompt = prompts.summarize({
-  wordCount: 50,
-  inputText: meetingTranscript,
-});
+import { prompts } from "./lib/tpl/index.js";
 ```
 
-IntelliSense works. Missing variables are compile errors. Wrong types are compile errors.
+### 6. CI
+
+Keep `tpl generate` in `build` (step 2). The watcher is for local dev only.
+
+---
+
+## Let an AI migrate inline prompts
+
+<Accordion title="📋 Copy the AI adoption prompt">
+
+```text
+You are helping adopt TPL (The Prompting Library) in this codebase.
+
+Workflow: `tpl watch` in dev, `tpl generate` in build/CI — do not treat `tpl generate` as the primary local workflow.
+
+───────────────────────────────────────────
+STEP 1 — INSTALL & SCRIPTS
+───────────────────────────────────────────
+
+  npm install -D the-prompting-library
+
+- "dev": prepend `tpl watch &` to the existing dev command, or use `"dev": "tpl watch"`.
+- "build": prepend `tpl generate &&` to the existing build command.
+
+Run dev and confirm the CLI prints generated files (e.g. into lib/tpl/).
+
+───────────────────────────────────────────
+STEP 2 — FIND ALL INLINED PROMPTS
+───────────────────────────────────────────
+
+Search for inline prompt strings: template literals or variables named prompt, systemPrompt, etc., or arguments to LLM SDK calls.
+
+───────────────────────────────────────────
+STEP 3 — EXTRACT INTO .tpl.md FILES
+───────────────────────────────────────────
+
+For each: create a kebab-case .tpl.md next to the source, use {{placeholders}}, optional frontmatter, shared content via {{> partialName}}.
+
+After saving, the watcher should update the output directory.
+
+───────────────────────────────────────────
+STEP 4 — REFACTOR CALL SITES
+───────────────────────────────────────────
+
+  import { prompts } from "./lib/tpl/index.js";
+
+───────────────────────────────────────────
+STEP 5 — VERIFY
+───────────────────────────────────────────
+
+  npx tpl generate
+  tsc --noEmit
+```
+
+</Accordion>
+
+---
+
+## Tree-shaking
 
 <Tip>
-  For tree-shaking or when you only need one prompt, import the build function directly:
-  `import { buildSummarizePrompt } from "./lib/tpl/summarize.ts";`
+  Import a single builder with the same ESM pattern: `import { buildSummarizePrompt } from "./lib/tpl/summarize.js"`.
 </Tip>

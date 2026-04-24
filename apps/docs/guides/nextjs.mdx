@@ -3,7 +3,13 @@ title: "Using with Next.js"
 description: "Integrate TPL into a Next.js project."
 ---
 
-## Setup
+## Setup (order matters)
+
+1. **Install** the CLI package.
+2. **Scripts:** run `tpl watch` together with `next dev`, and run `tpl generate` before `next build` so Vercel and other CI get fresh output without the watcher.
+3. **Start** `npm run dev` and confirm the first generate succeeds (see the `lib/tpl/` line in the terminal).
+4. **Add** a `.tpl.md`, save, and confirm the output directory updates.
+5. **Import** from the generated `index` using the path style your bundler expects (for strict ESM / `moduleResolution: "bundler"`, a path alias like `@/lib/tpl` is common).
 
 ```bash
 npm install -D the-prompting-library
@@ -17,6 +23,8 @@ npm install -D the-prompting-library
   }
 }
 ```
+
+The watcher is for local development; `tpl generate` in `build` is what runs in CI and on deploy.
 
 ## Create a prompt next to your route
 
@@ -45,6 +53,10 @@ export async function POST(request: Request) {
   // Use systemPrompt with your preferred LLM SDK
 }
 ```
+
+## ESM and generated files
+
+TPL emits relative imports between generated files with a **`.js` extension** so output is valid for **Node16 / NodeNext** resolution. Your app code can use a path alias (below) or a relative `*.js` import to the generated folder, depending on `tsconfig` `moduleResolution`.
 
 ## TypeScript path alias
 

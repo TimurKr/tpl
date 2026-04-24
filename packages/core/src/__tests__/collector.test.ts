@@ -148,9 +148,8 @@ describe("collector", () => {
       await generate({ rootDir, outputDir: out });
 
       const index = await readFile(join(out, "index.ts"), "utf-8");
-      expect(index).toContain(`export * from "./a"`);
-      expect(index).toContain(`export * from "./b"`);
-      expect(index).not.toContain(".js");
+      expect(index).toContain(`export * from "./a.js"`);
+      expect(index).toContain(`export * from "./b.js"`);
       expect(index).toContain("export const prompts");
       expect(index).toContain("a: buildAPrompt,");
       expect(index).toContain("b: buildBPrompt,");

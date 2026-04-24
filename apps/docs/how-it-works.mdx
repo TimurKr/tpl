@@ -21,6 +21,8 @@ description: "Under the hood: parsing, codegen, and the watch loop."
   lib/tpl/ written to disk (one .ts per template + index.ts)
 ```
 
+Relative imports between generated `.ts` files use **`.js` specifiers** (e.g. `from "./welcomeEmail.js"`) for strict ESM and TypeScript `Node16` / `NodeNext` compatibility.
+
 ## File naming → function names
 
 The camelCase function name is derived from the file stem:

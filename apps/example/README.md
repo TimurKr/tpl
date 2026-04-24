@@ -8,11 +8,11 @@ This is a working example showing how to use TPL in a project.
 # From the repo root:
 bun install
 
-# Generate the typed TypeScript file:
-bun run --cwd apps/example generate
-
-# Or watch for changes:
+# Develop — watcher regenerates on every .tpl.md save (preferred):
 bun run --cwd apps/example dev
+
+# One-shot (same as CI / build would run):
+bun run --cwd apps/example generate
 ```
 
 ## What's here
@@ -23,4 +23,4 @@ bun run --cwd apps/example dev
 - `src/features/search/search-query.tpl.md` — semantic search rewriter
 - `src/features/support/ticket-classifier.tpl.md` — support ticket classifier
 
-After running `tpl generate`, check `lib/tpl.ts` for the generated output.
+After `tpl watch` or `tpl generate`, generated TypeScript lives under `lib/tpl/` (see `"tpl".output` in `package.json`).

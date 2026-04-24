@@ -220,8 +220,8 @@ describe("generateFiles", () => {
     const b = makeTemplate({ functionName: "greet", filePath: "/project/src/b/greet.tpl.md" });
     const files = generateFiles([a, b], makeMap([a, b]), opts);
     const index = files.get("index.ts")!;
-    // export * from "./greet" should appear exactly once
-    expect(index.match(/export \* from "\.\/greet"/g)?.length).toBe(1);
+    // export * from "./greet.js" should appear exactly once
+    expect(index.match(/export \* from "\.\/greet\.js"/g)?.length).toBe(1);
   });
 
   it("circular include: generates file with @ts-expect-error marker (no throw)", () => {
@@ -242,14 +242,13 @@ describe("generateFiles", () => {
     expect(file).toContain("export function buildSelfRefPrompt");
   });
 
-  it("index re-exports all prompts with export * (no .js extension)", () => {
+  it("index re-exports all prompts with export * using .js for Node16/NodeNext ESM", () => {
     const a = makeTemplate({ functionName: "foo", rawContent: "Foo" });
     const b = makeTemplate({ functionName: "bar", rawContent: "Bar" });
     const files = generateFiles([a, b], makeMap([a, b]), opts);
     const index = files.get("index.ts")!;
-    expect(index).toContain(`export * from "./foo"`);
-    expect(index).toContain(`export * from "./bar"`);
-    expect(index).not.toContain(".js");
+    expect(index).toContain(`export * from "./foo.js"`);
+    expect(index).toContain(`export * from "./bar.js"`);
   });
 
   it("index imports build functions and defines prompts const with short keys", () => {
@@ -257,8 +256,8 @@ describe("generateFiles", () => {
     const b = makeTemplate({ functionName: "bar", rawContent: "Bar" });
     const files = generateFiles([a, b], makeMap([a, b]), opts);
     const index = files.get("index.ts")!;
-    expect(index).toContain(`import { buildFooPrompt } from "./foo"`);
-    expect(index).toContain(`import { buildBarPrompt } from "./bar"`);
+    expect(index).toContain(`import { buildFooPrompt } from "./foo.js"`);
+    expect(index).toContain(`import { buildBarPrompt } from "./bar.js"`);
     expect(index).toContain("export const prompts = {");
     expect(index).toContain("  foo: buildFooPrompt,");
     expect(index).toContain("  bar: buildBarPrompt,");
@@ -312,8 +311,8 @@ describe("generateFiles", () => {
     const files = generateFiles([partial, parent], map, opts);
     const welcomeFile = files.get("welcome.ts")!;
     // Type and build fn imported
-    expect(welcomeFile).toContain(`import { buildFooterPrompt } from "./footer"`);
-    expect(welcomeFile).toContain(`import type { FooterVariables } from "./footer"`);
+    expect(welcomeFile).toContain(`import { buildFooterPrompt } from "./footer.js"`);
+    expect(welcomeFile).toContain(`import type { FooterVariables } from "./footer.js"`);
     // Exposed in interface
     expect(welcomeFile).toContain("  footer: FooterVariables;");
     expect(welcomeFile).toContain("  userName: string;");
@@ -338,7 +337,7 @@ describe("generateFiles", () => {
     const files = generateFiles([partial, parent], map, opts);
     const welcomeFile = files.get("welcome.ts")!;
     // Build fn imported (not the raw file)
-    expect(welcomeFile).toContain(`import { buildStaticHeaderPrompt } from "./staticHeader"`);
+    expect(welcomeFile).toContain(`import { buildStaticHeaderPrompt } from "./staticHeader.js"`);
     // NOT in the interface (not a field the caller provides)
     expect(welcomeFile).not.toContain("StaticHeaderVariables");
     // IS in the renderTemplate partials call (auto-rendered internally)

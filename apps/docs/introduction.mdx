@@ -7,7 +7,7 @@ description: "The Prisma moment for prompts — drop .tpl.md files, get fully-ty
 
 Prompts are too important to live as inline strings buried in your code.
 
-TPL gives them their own files. Drop a `.tpl.md` anywhere, use `{{variableName}}` syntax, and get a fully-typed TypeScript function — automatically, on every save.
+TPL gives them their own files. Drop a `.tpl.md` anywhere, use `{{variableName}}` syntax, and get a fully-typed TypeScript function — **regenerated on every save** when `tpl watch` is in your dev script, and **rebuilt in CI** when you run `tpl generate` before compile.
 
 ```markdown welcome-email.tpl.md
 Write a warm welcome email to {{userName}} who just signed up for {{productName}}.
@@ -15,7 +15,7 @@ Their plan is {{planType}}. Keep it under 150 words.
 ```
 
 ```typescript
-import { prompts } from "./lib/tpl/index.ts";
+import { prompts } from "./lib/tpl/index.js";
 
 const prompt = prompts.welcomeEmail({
   userName: "Alice",
@@ -25,7 +25,7 @@ const prompt = prompts.welcomeEmail({
 // Wrong variable → compile error. Missing field → compile error.
 ```
 
-That's the core idea. Run `tpl watch` in your dev script and the typed functions stay in sync as you edit the Markdown.
+That's the core idea. Set up the watcher and dev script first, add a template, confirm `lib/tpl/` updates, then import — see [Quickstart](/quickstart).
 
 ## Why not AgentMark or Prompty?
 

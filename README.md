@@ -20,7 +20,7 @@ Their plan is {{planType}}. Keep it under 150 words.
 ```
 
 ```typescript
-import { prompts } from "./lib/tpl/index.ts";
+import { prompts } from "./lib/tpl/index.js";
 
 const text = prompts.welcomeEmail({
   userName: "Alice",
@@ -30,15 +30,79 @@ const text = prompts.welcomeEmail({
 // Wrong variable name → compile error. Missing field → compile error.
 ```
 
-Run `tpl watch` in your dev script. Every save regenerates the typed function in milliseconds. No config, no framework.
+Run `tpl watch` in your dev script. Every save regenerates the typed function in milliseconds. No config, no framework. Generated modules use `.js` in relative imports for **Node16 / NodeNext** ESM compatibility.
 
 ---
 
 ## Quick start
 
-**1. Let your AI agent do it:**
+**Preferred setup:** run **`tpl watch` during development** (Markdown and generated TypeScript never drift) and **`tpl generate` in CI and production builds** (clean checkouts typecheck without the watcher). Start with the watcher, add a template, confirm files appear under the output directory, then import from your app.
 
-Paste this into Cursor, Claude, or Copilot. It finds every inline prompt in your codebase, extracts them into `.tpl.md` files co-located with their feature, and refactors all call sites.
+### 1. Install
+
+```bash
+npm install -D the-prompting-library
+# or: bun add -D the-prompting-library
+# or: pnpm add -D the-prompting-library
+```
+
+### 2. Wire `dev` and `build`
+
+```json
+{
+  "scripts": {
+    "dev": "tpl watch & next dev",
+    "build": "tpl generate && next build"
+  }
+}
+```
+
+- **`dev`:** prefix with `tpl watch` (or run `tpl watch` alone if you have no other dev server). The watcher runs an initial generate, then rebuilds on every `.tpl.md` save (~50 ms).
+- **`build`:** prefix with `tpl generate` so CI and `npm run build` always compile against fresh generated files.
+
+### 3. Start the listener
+
+```bash
+npm run dev
+# or: npx tpl watch
+```
+
+You should see a line like: `Generated N prompt(s) → lib/tpl/`.
+
+### 4. Write your first template
+
+Create a `.tpl.md` next to your code, for example `src/features/auth/welcome-email.tpl.md`:
+
+```markdown
+---
+description: Welcome email for new users
+---
+
+Write a warm welcome email to {{userName}} who just signed up for {{productName}}.
+Their plan is {{planType}}. Keep it under 150 words.
+```
+
+Save the file. The terminal should show a short regenerate log within ~50 ms. Open your output directory (default `lib/tpl/`) and confirm new `.ts` files and an `index.ts` appeared. That means the dev loop is working.
+
+### 5. Use the generated API
+
+With **strict ESM** (`"module": "NodeNext"` / `"moduleResolution": "Node16"` or `NodeNext`), use a **`.js` extension** in relative imports; TypeScript resolves them to the `.ts` sources on disk.
+
+```typescript
+import { prompts } from "./lib/tpl/index.js";
+```
+
+Or import a single builder: `import { buildWelcomeEmailPrompt } from "./lib/tpl/welcomeEmail.js"`.
+
+### 6. CI / production
+
+You already added `tpl generate` to `build`. The same one-shot command is what you run in CI before `tsc` or your bundler, so you never need the watcher on a server.
+
+---
+
+**Let an AI extract inline prompts**
+
+Paste this into Cursor, Claude, or Copilot. It finds inline prompts, adds `.tpl.md` files, and refactors call sites.
 
 <details>
 <summary><strong>📋 Copy the AI adoption prompt</strong></summary>
@@ -46,23 +110,21 @@ Paste this into Cursor, Claude, or Copilot. It finds every inline prompt in your
 ```text
 You are helping adopt TPL (The Prompting Library) in this codebase.
 
-TPL turns scattered inline prompt strings into typed TypeScript functions. Drop
-.tpl.md files next to the code that uses them, run `tpl generate`, and get
-fully-typed functions — wrong variables become compile errors, not runtime surprises.
+TPL turns inline prompt strings into typed TypeScript functions. Workflow:
+- Development: `tpl watch` in the dev script; templates live in .tpl.md files.
+- CI/build: `tpl generate` before compile — never rely on the watcher in CI.
 
 ───────────────────────────────────────────
-STEP 1 — INSTALL
+STEP 1 — INSTALL & SCRIPTS
 ───────────────────────────────────────────
 
   npm install -D the-prompting-library
 
-Update package.json scripts. Check if a "dev" script already exists:
-- If yes, prepend `tpl watch &` to it (e.g. `"dev": "tpl watch & next dev"`)
-- If no, create one: `"dev": "tpl watch"`
+Add to package.json:
+- "dev": prepend `tpl watch &` to the existing dev command (e.g. `tpl watch & next dev`), or use `"dev": "tpl watch"` if there is no other server.
+- "build": prepend `tpl generate &&` to the existing build command.
 
-Also add tpl generate to the build script:
-
-  "build": "tpl generate && <existing-build-command>"
+Run `npm run dev` (or `npx tpl watch`) and confirm the CLI prints generated output to lib/tpl/ (or the configured output dir).
 
 ───────────────────────────────────────────
 STEP 2 — FIND ALL INLINED PROMPTS
@@ -109,6 +171,8 @@ After (src/features/email/welcome-email.tpl.md):
   ---
   Write a welcome email to {{userName}}. Plan: {{planType}}.
 
+After saving, the watcher should regenerate. Verify lib/tpl/ (or your output) updates.
+
 ───────────────────────────────────────────
 STEP 4 — SHARED CONTENT
 ───────────────────────────────────────────
@@ -123,18 +187,13 @@ Reference by name in any other template:
   Write a welcome email to {{userName}}...
 
 ───────────────────────────────────────────
-STEP 5 — GENERATE AND REFACTOR
+STEP 5 — REFACTOR CALL SITES
 ───────────────────────────────────────────
 
-  npx tpl generate
+Replace each inline prompt with the generated typed function, importing with .js
+for ESM (example):
 
-Then replace each inline prompt with the generated typed function:
-
-Before:
-  const prompt = `Write a welcome email to ${user.name}...`;
-
-After:
-  import { prompts } from "./lib/tpl/index.ts";
+  import { prompts } from "./lib/tpl/index.js";
   const prompt = prompts.welcomeEmail({ userName: user.name, planType: plan });
 
 ───────────────────────────────────────────
@@ -147,42 +206,12 @@ STEP 6 — VERIFY
 
 </details>
 
-**2. Or do it manually:**
+### Manual path (no AI)
 
-Install:
-
-```bash
-npm install -D the-prompting-library
-# or: bun add -D the-prompting-library
-# or: pnpm add -D the-prompting-library
-```
-
-Add to your scripts:
-
-```json
-{
-  "scripts": {
-    "dev": "tpl watch & next dev",
-    "build": "tpl generate && next build"
-  }
-}
-```
-
-Create a `.tpl.md` file next to the code that uses it:
-
-```markdown
-## <!-- src/features/auth/welcome-email.tpl.md -->
-
-## description: Welcome email for new users
-
-Write a warm welcome email to {{userName}} who just signed up for {{productName}}.
-Their plan is {{planType}}. Keep it under 150 words.
-```
-
-Use the generated function:
+If you already added scripts and the watcher in steps 1–3: create a `.tpl.md`, save, confirm `lib/tpl/` updates, then import:
 
 ```typescript
-import { prompts } from "./lib/tpl/index.ts";
+import { prompts } from "./lib/tpl/index.js";
 
 const text = prompts.welcomeEmail({
   userName: "Alice",
@@ -195,11 +224,7 @@ const text = prompts.welcomeEmail({
 
 ## Development workflow
 
-```bash
-tpl watch
-```
-
-Keep this running alongside your dev server. It generates on startup and re-generates within ~50 ms of any `.tpl.md` save. The generated files in `lib/tpl/` are always in sync.
+`tpl watch` (via `npm run dev` or on its own) keeps `lib/tpl/` in sync. On startup and on every save:
 
 ```
 ✓ Generated 5 prompt(s) → lib/tpl/
@@ -207,21 +232,7 @@ Keep this running alongside your dev server. It generates on startup and re-gene
 ✓ Generated 5 prompt(s) → lib/tpl/
 ```
 
-## CI / production
-
-```bash
-tpl generate
-```
-
-One-shot generation for build pipelines. Run it before your TypeScript compiler so the generated types are fresh.
-
-```json
-{
-  "scripts": {
-    "build": "tpl generate && tsc && ..."
-  }
-}
-```
+`tpl generate` is for CI and production builds only — not the primary day-to-day flow.
 
 ## Gitignore
 

@@ -12,6 +12,15 @@ function toImportPath(p: string): string {
 }
 
 /**
+ * Import path for one generated TS module from another (same output dir).
+ * Use a `.js` extension so emitted code works with `moduleResolution` "Node16" / "NodeNext"
+ * and native ESM resolution (TypeScript resolves `./foo.js` to `foo.ts`).
+ */
+function generatedRelativeModule(name: string): string {
+  return `./${name}.js`;
+}
+
+/**
  * Compute the relative import path from the output directory to a source file,
  * always using forward slashes and always starting with "./" or "../".
  */
@@ -125,11 +134,11 @@ function generateSinglePromptFile(
   // Build imports
   const buildFnImports = partialInfos.map(
     ({ partial, buildFnName: bfn }) =>
-      `import { ${bfn} } from "./${partial.functionName}";`
+      `import { ${bfn} } from "${generatedRelativeModule(partial.functionName)}";`
   );
   const typeImports = exposedPartials.map(
     ({ partial, pascalName: pn }) =>
-      `import type { ${pn}Variables } from "./${partial.functionName}";`
+      `import type { ${pn}Variables } from "${generatedRelativeModule(partial.functionName)}";`
   );
 
   // Interface fields from exposed partials
@@ -301,14 +310,14 @@ function generateIndexFile(uniqueNames: string[]): string {
   ];
 
   for (const name of uniqueNames) {
-    lines.push(`export * from "./${name}";`);
+    lines.push(`export * from "${generatedRelativeModule(name)}";`);
   }
 
   lines.push(``);
 
   for (const name of uniqueNames) {
     const buildFnName = `build${toPascalCase(name)}Prompt`;
-    lines.push(`import { ${buildFnName} } from "./${name}";`);
+    lines.push(`import { ${buildFnName} } from "${generatedRelativeModule(name)}";`);
   }
 
   lines.push(``);
@@ -316,7 +325,7 @@ function generateIndexFile(uniqueNames: string[]): string {
   lines.push(` * All prompt builder functions, keyed by their short name.`);
   lines.push(` *`);
   lines.push(` * @example`);
-  lines.push(` * import { prompts } from "./lib/tpl";`);
+  lines.push(` * import { prompts } from "./lib/tpl/index.js";`);
   lines.push(` * const text = prompts.summarize({ topic: "AI", wordCount: "50" });`);
   lines.push(` */`);
   lines.push(`export const prompts = {`);
