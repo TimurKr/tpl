@@ -17,31 +17,45 @@ The frontmatter is **optional**. A `.tpl.md` file with just content is valid.
 
 ## Variables
 
-Use `{{camelCase}}` syntax:
+| Syntax | TypeScript | Behaviour |
+|--------|-----------|-----------|
+| `{{name}}` | `name: string` | Required string |
+| `{{name:number}}` | `name: number` | Required number |
+| `{{name:boolean}}` | `name: boolean` | Required boolean |
+| `{{name:string[]}}` | `name: string[]` | Required array, joined with `, ` on render |
+| `{{name\|default}}` | `name?: string` | Optional — uses default when omitted |
+| `{{name:number\|0}}` | `name?: number` | Optional typed with default |
+
+Types are declared right in the variable — no separate config that can drift out of sync.
 
 ```markdown
-Write a welcome email to {{userName}} for {{productName}}.
+Summarize the following in {{wordCount:number}} words.
+{{#if tone}}Write in a {{tone}} tone.{{/if}}
+Focus on: {{focusArea|key decisions}}
 ```
 
-All variables become required parameters in the generated function. Variables are:
-- Deduplicated (same name used multiple times = one parameter)
-- Type `string` (all variables are strings)
-- Required (no optional variables — keep it simple)
+## Conditionals
+
+```markdown
+{{#if note}}
+**Note:** {{note}}
+{{/if}}
+```
+
+Variables that appear only inside `{{#if}}` blocks are automatically typed as optional. The block is omitted when the variable is falsy or missing.
 
 ## Includes
 
-Use `{{> path/to/prompt}}` to include another prompt:
+Use `{{> name}}` to include another prompt by name:
 
 ```markdown
-{{> shared/base-persona}}
+{{> basePersona}}
 
 Now do the actual task using {{userInput}}.
 ```
 
-- Includes resolve from the **project root** (where your `package.json` is)
-- `{{> shared/base-persona}}` → `<projectRoot>/shared/base-persona.tpl.md`
-- Includes are resolved **at code generation time**, not runtime
-- Circular includes are detected and reported as errors
+- References resolve by **name** (camelCase or kebab-case), no path required
+- Circular includes are detected — they produce a TypeScript error in the generated file rather than halting generation entirely
 
 ## Frontmatter
 
@@ -53,4 +67,4 @@ description: Human-readable description of this prompt
 ---
 ```
 
-The description appears as a JSDoc comment on the generated function.
+The description appears as a JSDoc comment on the generated function and in IntelliSense.

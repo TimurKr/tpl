@@ -36,7 +36,7 @@ export function readConfig(projectRoot: string): TplConfig {
 export function buildOptions(projectRoot: string, config: TplConfig): GenerateOptions {
   return {
     rootDir: projectRoot,
-    outputDir: path.join(projectRoot, config.output ?? "lib/tpl"),
+    outputDir: path.join(projectRoot, config.output ?? "lib/prompts"),
     pattern: config.pattern ?? "**/*.tpl.md",
     ignore: config.ignore ?? [],
   };

@@ -12,9 +12,10 @@
     "the-prompting-library": "workspace:*"
   },
   "devDependencies": {
+    "@types/node": "^25.6.0",
     "typescript": "^5.4.5"
   },
   "tpl": {
-    "output": "lib/tpl"
+    "output": "lib/prompts"
   }
 }

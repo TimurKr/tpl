@@ -1,132 +1,411 @@
 import { relative } from "path";
 import type { ParsedTemplate, GenerateOptions } from "./types.js";
-import { resolveIncludes } from "./resolver.js";
+import { findTemplate, hasEffectiveVariables } from "./resolver.js";
 
 function toPascalCase(name: string): string {
   return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
-function escapeTemplateLiteral(content: string): string {
-  return content
-    .replace(/\\/g, "\\\\")
-    .replace(/`/g, "\\`")
-    .replace(/\$\{/g, "\\${");
+/** Convert an OS path to a POSIX-style import path (forward slashes). */
+function toImportPath(p: string): string {
+  return p.split("\\").join("/");
 }
 
-function buildFunctionBody(resolvedContent: string, variables: string[]): string {
-  let escaped = escapeTemplateLiteral(resolvedContent);
-  for (const variable of variables) {
-    const pattern = new RegExp(`\\{\\{\\s*${variable}\\s*\\}\\}`, "g");
-    escaped = escaped.replace(pattern, `\${vars.${variable}}`);
+/**
+ * Compute the relative import path from the output directory to a source file,
+ * always using forward slashes and always starting with "./" or "../".
+ */
+function relativeImport(from: string, to: string): string {
+  const rel = toImportPath(relative(from, to));
+  return rel.startsWith(".") ? rel : `./${rel}`;
+}
+
+/**
+ * Info about one direct partial dependency of a template.
+ * - hasEffectiveVars: true if this partial (or anything in its transitive tree)
+ *   declares variables. When true, the partial is exposed in the parent's
+ *   interface and the caller must supply its vars. When false, the build
+ *   function is called automatically with no arguments.
+ */
+interface PartialInfo {
+  partial: ParsedTemplate;
+  hasEffectiveVars: boolean;
+  buildFnName: string;   // e.g. "buildBasePersonaPrompt"
+  pascalName: string;    // e.g. "BasePersona"
+}
+
+function collectDirectPartialInfos(
+  template: ParsedTemplate,
+  allTemplates: Map<string, ParsedTemplate>
+): PartialInfo[] {
+  const infos: PartialInfo[] = [];
+  for (const includeName of template.includes) {
+    const partial = findTemplate(allTemplates, includeName);
+    if (!partial) {
+      throw new Error(
+        `Include '{{> ${includeName}}}' in '${template.filePath}' could not be resolved.`
+      );
+    }
+    // Detect direct self-reference (deeper cycles are caught by hasEffectiveVariables)
+    if (partial.functionName === template.functionName) {
+      throw new Error(
+        `Circular include detected: '${includeName}' is already in the resolution chain [${template.functionName} → ${partial.functionName}]`
+      );
+    }
+    infos.push({
+      partial,
+      hasEffectiveVars: hasEffectiveVariables(partial, allTemplates),
+      buildFnName: `build${toPascalCase(partial.functionName)}Prompt`,
+      pascalName: toPascalCase(partial.functionName),
+    });
   }
-  return escaped;
+  return infos;
 }
 
-/** Generate the content for a single prompt file (e.g. welcome-email.ts). */
-function generatePromptFile(
+/**
+ * Generate the content for a single prompt file (e.g. welcomeEmail.ts).
+ *
+ * Each file only knows about its direct partial dependencies. For each direct
+ * partial:
+ *   - If it has effective variables (own or transitive): exposed as a typed
+ *     nested field in the interface, its build function is called with
+ *     vars.partialName.
+ *   - If it has NO effective variables: auto-rendered by calling its build
+ *     function with no arguments; the caller never sees it.
+ *
+ * This means interfaces only contain what the caller actually needs to supply,
+ * and each build function delegates to the build functions of its includes —
+ * forming a proper recursive call chain instead of a flat partials map.
+ */
+function generateSinglePromptFile(
   template: ParsedTemplate,
   allTemplates: Map<string, ParsedTemplate>,
-  rootDir: string
+  rootDir: string,
+  outputDir: string
 ): string {
-  const rawResolved = resolveIncludes(template, allTemplates);
-  const resolved = rawResolved.replace(/\n{3,}/g, "\n\n").trim();
-  const body = buildFunctionBody(resolved, template.variables);
   const { functionName, description, variables, filePath } = template;
+  const pascalName = toPascalCase(functionName);
+  const buildFnName = `build${pascalName}Prompt`;
+  const interfaceName = `${pascalName}Variables`;
+  const relSource = toImportPath(relative(rootDir, filePath));
+  const templateImportPath = relativeImport(outputDir, filePath);
 
-  const relSource = relative(rootDir, filePath);
+  // Gather direct partial info — may throw on circular/missing includes
+  let partialInfos: PartialInfo[];
+  try {
+    partialInfos = collectDirectPartialInfos(template, allTemplates);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    // The generated file uses @ts-expect-error on a valid line, producing an
+    // "Unused directive" TS error that surfaces the problem in the IDE.
+    return [
+      `// AUTO-GENERATED by tpl — do not edit`,
+      `// Source: ${relSource}`,
+      ...syntaxCommentLines(),
+      ``,
+      `// ⚠️  CIRCULAR INCLUDE DETECTED`,
+      `// ${msg}`,
+      `// Fix the circular {{> ...}} reference in your template, then re-run tpl generate.`,
+      ``,
+      `// @ts-expect-error ⚠️ circular include — the line below is intentionally valid so this directive errors`,
+      `export function ${buildFnName}(): string { return ""; }`,
+      ``,
+    ].join("\n");
+  }
+
+  // Split into partials that need caller-supplied vars vs. auto-rendered ones
+  const exposedPartials = partialInfos.filter((p) => p.hasEffectiveVars);
+  const autoPartials = partialInfos.filter((p) => !p.hasEffectiveVars);
+
+  // Does this template as a whole need a vars argument?
+  const hasOwnVars = variables.length > 0;
+  const hasExposedPartials = exposedPartials.length > 0;
+  const needsVars = hasOwnVars || hasExposedPartials;
+
+  // Build imports
+  const buildFnImports = partialInfos.map(
+    ({ partial, buildFnName: bfn }) =>
+      `import { ${bfn} } from "./${partial.functionName}";`
+  );
+  const typeImports = exposedPartials.map(
+    ({ partial, pascalName: pn }) =>
+      `import type { ${pn}Variables } from "./${partial.functionName}";`
+  );
+
+  // Interface fields from exposed partials
+  const partialFields = exposedPartials.map(
+    ({ partial, pascalName: pn }) => `  ${partial.functionName}: ${pn}Variables;`
+  );
+
+  // Partials map entries for the renderTemplate call
+  const partialsEntries = partialInfos.map(({ partial, buildFnName: bfn, hasEffectiveVars }) =>
+    hasEffectiveVars
+      ? `${partial.functionName}: ${bfn}(vars.${partial.functionName})`
+      : `${partial.functionName}: ${bfn}()`
+  );
+  const partialsArg = partialsEntries.length > 0
+    ? `{ ${partialsEntries.join(", ")} }`
+    : null;
+
   const lines: string[] = [
     `// AUTO-GENERATED by tpl — do not edit`,
     `// Source: ${relSource}`,
+    ...syntaxCommentLines(),
     ``,
+    `import { renderTemplate } from "the-prompting-library/runtime";`,
+    `import TEMPLATE from "${templateImportPath}" with { type: "text" };`,
   ];
 
-  const jsdocParts: string[] = [];
-  if (description) jsdocParts.push(description);
-  jsdocParts.push(`Source: ${relSource}`);
+  if (buildFnImports.length > 0) lines.push(...buildFnImports);
+  if (typeImports.length > 0) lines.push(...typeImports);
+  lines.push(``);
+
+  // JSDoc
   lines.push(`/**`);
-  for (const part of jsdocParts) lines.push(` * ${part}`);
+  if (description) lines.push(` * ${description}`);
+  lines.push(` * @source ${relSource}`);
   lines.push(` */`);
 
-  if (variables.length > 0) {
-    const interfaceName = `${toPascalCase(functionName)}Variables`;
-    lines.push(`export interface ${interfaceName} {`);
-    for (const v of variables) lines.push(`  ${v}: string;`);
-    lines.push(`}`);
-    lines.push(``);
-    lines.push(`export function ${functionName}(vars: ${interfaceName}): string {`);
+  // Interface — always exported (even when empty) so parent templates can import the type
+  if (!needsVars) {
+    lines.push(`export interface ${interfaceName} {}`);
   } else {
-    lines.push(`export function ${functionName}(): string {`);
+    lines.push(`export interface ${interfaceName} {`);
+    for (const v of variables) {
+      const optional = v.optional ? "?" : "";
+      lines.push(`  ${v.name}${optional}: ${v.type};`);
+    }
+    for (const field of partialFields) {
+      lines.push(field);
+    }
+    lines.push(`}`);
   }
+  lines.push(``);
 
-  lines.push(`  return \`${body}\`;`);
+  // Build function
+  // When there are exposed partials, the vars object includes nested partial sub-objects
+  // (e.g. vars.footer = { email, phone }). Passing the full vars to renderTemplate would
+  // cause flattenVars to hoist those keys into the parent's substitution context, making
+  // footer.email silently available as {{email}} in the parent template. Instead, pass
+  // only the template's own variables explicitly.
+  const ownVarsArg = exposedPartials.length > 0
+    ? variables.length > 0
+      ? `{ ${variables.map((v) => `${v.name}: vars.${v.name}`).join(", ")} }`
+      : `{}`
+    : `vars`;
+
+  const callArgs = needsVars
+    ? partialsArg ? `${ownVarsArg}, ${partialsArg}` : ownVarsArg
+    : partialsArg ? `{}, ${partialsArg}` : `{}`;
+
+  if (needsVars) {
+    lines.push(`export function ${buildFnName}(vars: ${interfaceName}): string {`);
+  } else {
+    lines.push(`export function ${buildFnName}(): string {`);
+  }
+  lines.push(`  return renderTemplate(TEMPLATE, ${callArgs});`);
   lines.push(`}`);
   lines.push(``);
 
   return lines.join("\n");
 }
 
-/** Generate the index.ts that re-exports all prompts and defines the prompts const. */
-function generateIndexFile(templates: ParsedTemplate[]): string {
+/**
+ * Generate a collision file containing both templates with raw imports.
+ * The duplicate function declarations cause TypeScript errors in the IDE.
+ */
+function generateCollisionFile(
+  templates: ParsedTemplate[],
+  allTemplates: Map<string, ParsedTemplate>,
+  rootDir: string,
+  outputDir: string
+): string {
+  const functionName = templates[0]!.functionName;
+  const pascalName = toPascalCase(functionName);
+  const buildFnName = `build${pascalName}Prompt`;
+
+  const lines: string[] = [
+    `// AUTO-GENERATED by tpl — do not edit`,
+    `// ⚠️  NAME COLLISION: multiple templates map to '${functionName}'`,
+    `// Rename one of the following files to resolve this:`,
+    ...templates.map((t) => `//   ${toImportPath(relative(rootDir, t.filePath))}`),
+    `// Until then, the duplicate declarations below will cause TypeScript errors.`,
+    ...syntaxCommentLines(),
+    ``,
+    `import { renderTemplate } from "the-prompting-library/runtime";`,
+  ];
+
+  templates.forEach((t, i) => {
+    lines.push(
+      `import TEMPLATE_${i + 1} from "${relativeImport(outputDir, t.filePath)}" with { type: "text" };`
+    );
+  });
+
+  templates.forEach((t, i) => {
+    const relSource = toImportPath(relative(rootDir, t.filePath));
+    let partialInfos: PartialInfo[];
+    try {
+      partialInfos = collectDirectPartialInfos(t, allTemplates);
+    } catch {
+      partialInfos = [];
+    }
+    const hasVars = t.variables.length > 0 || partialInfos.some((p) => p.hasEffectiveVars);
+
+    lines.push(``);
+    lines.push(`// ↓ from ${relSource}`);
+    lines.push(`/**`);
+    if (t.description) lines.push(` * ${t.description}`);
+    lines.push(` * @source ${relSource}`);
+    lines.push(` */`);
+
+    if (hasVars) {
+      lines.push(`export interface ${pascalName}Variables {`);
+      for (const v of t.variables) {
+        lines.push(`  ${v.name}${v.optional ? "?" : ""}: ${v.type};`);
+      }
+      lines.push(`}`);
+      lines.push(``);
+      lines.push(`export function ${buildFnName}(vars: ${pascalName}Variables): string {`);
+      lines.push(`  return renderTemplate(TEMPLATE_${i + 1}, vars);`);
+    } else {
+      lines.push(`export function ${buildFnName}(): string {`);
+      lines.push(`  return renderTemplate(TEMPLATE_${i + 1}, {});`);
+    }
+    lines.push(`}`);
+  });
+
+  lines.push(``);
+  return lines.join("\n");
+}
+
+/** Shared syntax comment block for all generated files. */
+function syntaxCommentLines(): string[] {
+  return [
+    `// Syntax:`,
+    `//   {{var}}               required variable (string by default)`,
+    `//   {{var:type}}          typed: string | number | boolean | string[]`,
+    `//   {{var|default}}       optional — uses default when omitted`,
+    `//   {{#if var}}...{{/if}} conditional block — omitted when var is falsy`,
+    `//   {{> name}}            partial — vars-less partials auto-render; vars partials become nested interface fields`,
+    `// Docs: https://github.com/timurkr/tpl`,
+  ];
+}
+
+/** Generate the index.ts that re-exports all prompts and defines the prompts object. */
+function generateIndexFile(uniqueNames: string[]): string {
   const timestamp = new Date().toISOString();
   const lines: string[] = [
     `// AUTO-GENERATED by tpl — do not edit`,
-    `// Generated: ${timestamp} | ${templates.length} prompts`,
+    `// Generated: ${timestamp} | ${uniqueNames.length} prompts`,
     ``,
   ];
 
-  // Re-export everything from each prompt file
-  for (const t of templates) {
-    lines.push(`export * from "./${t.functionName}.js";`);
+  for (const name of uniqueNames) {
+    lines.push(`export * from "./${name}";`);
   }
 
   lines.push(``);
 
-  // Import each function for the prompts const
-  for (const t of templates) {
-    lines.push(`import { ${t.functionName} } from "./${t.functionName}.js";`);
+  for (const name of uniqueNames) {
+    const buildFnName = `build${toPascalCase(name)}Prompt`;
+    lines.push(`import { ${buildFnName} } from "./${name}";`);
   }
 
   lines.push(``);
+  lines.push(`/**`);
+  lines.push(` * All prompt builder functions, keyed by their short name.`);
+  lines.push(` *`);
+  lines.push(` * @example`);
+  lines.push(` * import { prompts } from "./lib/prompts";`);
+  lines.push(` * const text = prompts.summarize({ topic: "AI", wordCount: "50" });`);
+  lines.push(` */`);
   lines.push(`export const prompts = {`);
-  for (const t of templates) lines.push(`  ${t.functionName},`);
+  for (const name of uniqueNames) {
+    const buildFnName = `build${toPascalCase(name)}Prompt`;
+    lines.push(`  ${name}: ${buildFnName},`);
+  }
   lines.push(`} as const;`);
+  lines.push(``);
+
+  lines.push(`/**`);
+  lines.push(` * Render any prompt by name at runtime.`);
+  lines.push(` * Useful when the template name comes from config or user input.`);
+  lines.push(` *`);
+  lines.push(` * @example`);
+  lines.push(` * renderPrompt("summarize", { topic: "AI", wordCount: "50" });`);
+  lines.push(` */`);
+  lines.push(`export function renderPrompt(`);
+  lines.push(`  name: keyof typeof prompts,`);
+  lines.push(`  vars: Record<string, unknown> = {}`);
+  lines.push(`): string {`);
+  lines.push(`  // All generated build functions accept vars (or ignore it for static templates).
+  // Calling a no-arg function with one argument is safe in JS; the cast avoids the
+  // type mismatch without hiding it behind an opaque (fn as unknown as ...) chain.
+  return (prompts[name] as Function)(vars);`);
+  lines.push(`}`);
   lines.push(``);
 
   return lines.join("\n");
 }
 
+/** The ambient type declaration that allows TypeScript to understand *.tpl.* imports. */
+function generateTplDts(): string {
+  return [
+    `// AUTO-GENERATED by tpl — do not edit`,
+    `// Ambient module declarations for .tpl.* source file imports.`,
+    ``,
+    `declare module "*.tpl.md" { const content: string; export default content; }`,
+    `declare module "*.tpl.mdx" { const content: string; export default content; }`,
+    `declare module "*.tpl.txt" { const content: string; export default content; }`,
+    `declare module "*.tpl.html" { const content: string; export default content; }`,
+    ``,
+  ].join("\n");
+}
+
 /**
  * Returns a Map of filename → file content for each prompt file plus an index.
- * Key is the bare filename, e.g. "welcome-email.ts" or "index.ts".
+ *
+ * Partial handling (A+ strategy):
+ *   - Partials with no effective variables are auto-rendered; they don't appear
+ *     in the parent interface and the caller never needs to supply them.
+ *   - Partials with effective variables are exposed as nested typed fields; the
+ *     parent's build function delegates to the partial's build function.
+ *
+ * Name collisions: both templates are merged into one file with duplicate
+ * declarations, which TypeScript flags as errors.
+ *
+ * Circular includes: the affected file gets a @ts-expect-error marker that
+ * TypeScript surfaces as an error, without preventing other prompts from generating.
  */
 export function generateFiles(
   templates: ParsedTemplate[],
   allTemplates: Map<string, ParsedTemplate>,
   options: GenerateOptions
 ): Map<string, string> {
-  const nameToFiles = new Map<string, string[]>();
+  const { rootDir, outputDir } = options;
+
+  const grouped = new Map<string, ParsedTemplate[]>();
   for (const t of templates) {
-    const existing = nameToFiles.get(t.functionName) ?? [];
-    existing.push(t.filePath);
-    nameToFiles.set(t.functionName, existing);
-  }
-  for (const [name, files] of nameToFiles) {
-    if (files.length > 1) {
-      throw new Error(
-        `Name collision: multiple templates produce the function name '${name}':\n` +
-          files.map((f) => `  - ${f}`).join("\n")
-      );
-    }
+    const existing = grouped.get(t.functionName) ?? [];
+    existing.push(t);
+    grouped.set(t.functionName, existing);
   }
 
   const out = new Map<string, string>();
+  const uniqueNames: string[] = [];
 
-  for (const template of templates) {
-    const filename = `${template.functionName}.ts`;
-    out.set(filename, generatePromptFile(template, allTemplates, options.rootDir));
+  for (const [name, group] of grouped) {
+    uniqueNames.push(name);
+    out.set(
+      `${name}.ts`,
+      group.length === 1
+        ? generateSinglePromptFile(group[0]!, allTemplates, rootDir, outputDir)
+        : generateCollisionFile(group, allTemplates, rootDir, outputDir)
+    );
   }
 
-  out.set("index.ts", generateIndexFile(templates));
+  out.set("index.ts", generateIndexFile(uniqueNames));
+  out.set("tpl.d.ts", generateTplDts());
 
   return out;
 }

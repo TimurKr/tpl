@@ -65,13 +65,75 @@ describe("parseTemplate", () => {
     return path;
   }
 
-  it("extracts variables from content", async () => {
+  it("extracts plain variables with string type", async () => {
     const path = await write(
       "greet.tpl.md",
       "Hello {{userName}}, welcome to {{productName}}!"
     );
     const result = await parseTemplate(path, tmpDir);
-    expect(result.variables).toEqual(["userName", "productName"]);
+    expect(result.variables).toHaveLength(2);
+    expect(result.variables[0]).toMatchObject({ name: "userName", type: "string", optional: false });
+    expect(result.variables[1]).toMatchObject({ name: "productName", type: "string", optional: false });
+  });
+
+  it("parses typed variable {{name:number}}", async () => {
+    const path = await write("count.tpl.md", "Count: {{limit:number}} items");
+    const result = await parseTemplate(path, tmpDir);
+    expect(result.variables).toHaveLength(1);
+    expect(result.variables[0]).toMatchObject({ name: "limit", type: "number", optional: false });
+  });
+
+  it("parses typed variable {{name:boolean}}", async () => {
+    const path = await write("flag.tpl.md", "Enabled: {{active:boolean}}");
+    const result = await parseTemplate(path, tmpDir);
+    expect(result.variables[0]).toMatchObject({ name: "active", type: "boolean", optional: false });
+  });
+
+  it("parses typed variable {{name:string[]}}", async () => {
+    const path = await write("list.tpl.md", "Items: {{tags:string[]}}");
+    const result = await parseTemplate(path, tmpDir);
+    expect(result.variables[0]).toMatchObject({ name: "tags", type: "string[]", optional: false });
+  });
+
+  it("parses optional variable with default {{name|default}}", async () => {
+    const path = await write("greet.tpl.md", "Hello {{name|World}}!");
+    const result = await parseTemplate(path, tmpDir);
+    expect(result.variables[0]).toMatchObject({
+      name: "name",
+      type: "string",
+      optional: true,
+      defaultValue: "World",
+    });
+  });
+
+  it("parses typed optional with default {{name:number|0}}", async () => {
+    const path = await write("count.tpl.md", "Count: {{limit:number|10}}");
+    const result = await parseTemplate(path, tmpDir);
+    expect(result.variables[0]).toMatchObject({
+      name: "limit",
+      type: "number",
+      optional: true,
+      defaultValue: "10",
+    });
+  });
+
+  it("variables in {{#if}} blocks are marked optional", async () => {
+    const path = await write(
+      "note.tpl.md",
+      "Hello!\n{{#if note}}\n**Note:** {{note}}\n{{/if}}"
+    );
+    const result = await parseTemplate(path, tmpDir);
+    const noteVar = result.variables.find((v) => v.name === "note");
+    expect(noteVar).toBeDefined();
+    expect(noteVar?.optional).toBe(true);
+  });
+
+  it("condition-only variable is still included", async () => {
+    const path = await write("beta.tpl.md", "{{#if betaUser}}\nBeta features enabled.\n{{/if}}");
+    const result = await parseTemplate(path, tmpDir);
+    const v = result.variables.find((v) => v.name === "betaUser");
+    expect(v).toBeDefined();
+    expect(v?.optional).toBe(true);
   });
 
   it("deduplicates variables preserving order", async () => {
@@ -80,7 +142,7 @@ describe("parseTemplate", () => {
       "{{name}} is {{name}} and {{other}} is {{name}}"
     );
     const result = await parseTemplate(path, tmpDir);
-    expect(result.variables).toEqual(["name", "other"]);
+    expect(result.variables.map((v) => v.name)).toEqual(["name", "other"]);
   });
 
   it("returns empty variables when none present", async () => {
@@ -95,8 +157,8 @@ describe("parseTemplate", () => {
       "{{> shared/base}}\nHello {{userName}}"
     );
     const result = await parseTemplate(path, tmpDir);
-    expect(result.variables).toEqual(["userName"]);
-    expect(result.variables).not.toContain("> shared/base");
+    expect(result.variables.map((v) => v.name)).toEqual(["userName"]);
+    expect(result.variables.map((v) => v.name)).not.toContain("> shared/base");
   });
 
   it("extracts includes correctly", async () => {
@@ -148,6 +210,12 @@ describe("parseTemplate", () => {
   it("trims whitespace from variable names", async () => {
     const path = await write("trim.tpl.md", "Hello {{ name }} and {{ other }}");
     const result = await parseTemplate(path, tmpDir);
-    expect(result.variables).toEqual(["name", "other"]);
+    expect(result.variables.map((v) => v.name)).toEqual(["name", "other"]);
+  });
+
+  it("invalid type falls back to string", async () => {
+    const path = await write("bad.tpl.md", "{{count:object}}");
+    const result = await parseTemplate(path, tmpDir);
+    expect(result.variables[0]).toMatchObject({ name: "count", type: "string" });
   });
 });

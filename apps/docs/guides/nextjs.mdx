@@ -6,7 +6,7 @@ description: "Integrate TPL into a Next.js project."
 ## Setup
 
 ```bash
-npm install -D tpl
+npm install -D the-prompting-library
 ```
 
 ```json package.json
@@ -18,34 +18,28 @@ npm install -D tpl
 }
 ```
 
-## Add to .gitignore
-
-```gitignore
-lib/tpl.ts
-```
-
-## Create a prompt
+## Create a prompt next to your route
 
 ```markdown src/app/api/chat/system.tpl.md
 ---
 description: System prompt for the chat API
 ---
 
-You are a helpful assistant for {{companyName}}. 
-Respond in {{language}}. Keep responses concise.
+You are a helpful assistant for {{companyName}}.
+Respond in {{language|English}}. Keep responses concise.
 ```
 
 ## Use in a route handler
 
 ```typescript src/app/api/chat/route.ts
-import { system } from "@/lib/tpl";
+import { prompts } from "@/lib/prompts";
 
 export async function POST(request: Request) {
   const { messages } = await request.json();
 
-  const systemPrompt = system({
+  const systemPrompt = prompts.system({
     companyName: "Acme Corp",
-    language: "English",
+    // language is optional — defaults to "English"
   });
 
   // Use systemPrompt with your preferred LLM SDK
@@ -54,15 +48,22 @@ export async function POST(request: Request) {
 
 ## TypeScript path alias
 
-If you use `@/` path aliases, add `lib/tpl.ts` to your paths:
+If you use `@/` path aliases, ensure `lib/` is reachable:
 
 ```json tsconfig.json
 {
   "compilerOptions": {
     "paths": {
-      "@/*": ["./src/*"],
-      "@/lib/*": ["./lib/*"]
+      "@/*": ["./*"]
     }
   }
 }
 ```
+
+## Gitignore (optional)
+
+```gitignore
+lib/prompts/
+```
+
+Or commit it — both are valid. Committing means PR diffs show exactly what changed in the generated output.

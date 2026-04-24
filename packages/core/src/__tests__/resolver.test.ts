@@ -109,6 +109,57 @@ describe("resolveIncludes", () => {
     expect(() => resolveIncludes(a, map)).toThrow(/selfRef/);
   });
 
+  it("resolves include by bare camelCase name (name-only reference)", () => {
+    const base = makeTemplate({
+      functionName: "base",
+      filePath: "/project/shared/base.tpl.md",
+      rawContent: "You are helpful.",
+    });
+    const main = makeTemplate({
+      functionName: "main",
+      // Note: using bare name "base" instead of "shared/base"
+      rawContent: "{{> base}}\nAnswer: {{answer}}",
+      includes: ["base"],
+    });
+    const map = new Map([
+      ["base", base],
+      ["main", main],
+    ]);
+    const result = resolveIncludes(main, map);
+    expect(result).toBe("You are helpful.\nAnswer: {{answer}}");
+  });
+
+  it("resolves include by bare kebab-case name (name-only reference)", () => {
+    const base = makeTemplate({
+      functionName: "basePersona",
+      filePath: "/project/shared/base-persona.tpl.md",
+      rawContent: "You are an expert.",
+    });
+    const main = makeTemplate({
+      functionName: "main",
+      // Using kebab-case bare name
+      rawContent: "{{> base-persona}}\nHelp with {{topic}}.",
+      includes: ["base-persona"],
+    });
+    const map = new Map([
+      ["basePersona", base],
+      ["main", main],
+    ]);
+    const result = resolveIncludes(main, map);
+    expect(result).toBe("You are an expert.\nHelp with {{topic}}.");
+  });
+
+  it("self-reference is still caught with name-only refs", () => {
+    const selfRef = makeTemplate({
+      functionName: "selfRef",
+      filePath: "/project/selfRef.tpl.md",
+      rawContent: "{{> selfRef}}",
+      includes: ["selfRef"],
+    });
+    const map = new Map([["selfRef", selfRef]]);
+    expect(() => resolveIncludes(selfRef, map)).toThrow(/[Cc]ircular/);
+  });
+
   it("handles multiple includes in one template", () => {
     const header = makeTemplate({
       functionName: "header",

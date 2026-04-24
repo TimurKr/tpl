@@ -3,9 +3,38 @@ title: "CLI Reference"
 description: "tpl command reference."
 ---
 
+## tpl watch
+
+Watch for `.tpl.md` changes and regenerate automatically (~50 ms debounce).
+
+```bash
+tpl watch
+# or
+tpl w
+```
+
+The primary workflow for development. Generates on startup, then re-generates within ~50 ms of any `.tpl.md` save.
+
+Options:
+
+| Option | Description |
+|--------|-------------|
+| `--cwd <dir>` | Working directory (defaults to `process.cwd()`) |
+| `--output <path>` | Override the output directory |
+
+Recommended for dev scripts:
+
+```json
+{
+  "scripts": {
+    "dev": "tpl watch & next dev"
+  }
+}
+```
+
 ## tpl generate
 
-Generate `lib/tpl.ts` from all `.tpl.md` files (one-shot).
+Generate `lib/prompts/` from all `.tpl.md` files (one-shot).
 
 ```bash
 tpl generate
@@ -18,41 +47,14 @@ Options:
 | Option | Description |
 |--------|-------------|
 | `--cwd <dir>` | Working directory (defaults to `process.cwd()`) |
-| `--output <path>` | Override the output file path |
+| `--output <path>` | Override the output directory |
 
-Use in CI / build scripts:
+Use in CI / build scripts before your TypeScript compiler:
 
 ```json
 {
   "scripts": {
     "build": "tpl generate && next build"
-  }
-}
-```
-
-## tpl watch
-
-Watch for `.tpl.md` changes and regenerate automatically (50ms debounce).
-
-```bash
-tpl watch
-# or
-tpl w
-```
-
-Options:
-
-| Option | Description |
-|--------|-------------|
-| `--cwd <dir>` | Working directory (defaults to `process.cwd()`) |
-| `--output <path>` | Override the output file path |
-
-Recommended for dev scripts:
-
-```json
-{
-  "scripts": {
-    "dev": "tpl watch & next dev"
   }
 }
 ```

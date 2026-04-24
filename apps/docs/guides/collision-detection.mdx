@@ -5,40 +5,52 @@ description: "Understanding and fixing name collisions."
 
 ## What is a collision?
 
-A collision happens when two different `.tpl.md` files produce the same function name.
+A collision happens when two different `.tpl.md` files produce the same camelCase function name.
 
-Since function names are derived from filenames:
-
-```
-src/auth/summary.tpl.md    → summary()
-src/search/summary.tpl.md  → summary()
-```
-
-Both files would generate a function named `summary` — which is impossible in a single TypeScript file.
-
-## The error
-
-TPL reports collisions clearly:
+Since names are derived from filenames:
 
 ```
-Error: Name collision detected for function "summary":
-  - src/auth/summary.tpl.md
-  - src/search/summary.tpl.md
-
-Rename one of the files to resolve this.
+src/auth/summary.tpl.md    → summary
+src/search/summary.tpl.md  → summary
 ```
 
-Generation stops until the collision is resolved.
+Both produce the same name — which is impossible to export unambiguously.
+
+## How TPL handles it
+
+Generation **does not stop**. Instead, both templates are merged into a single collision file with duplicate declarations:
+
+```typescript
+// lib/prompts/summary.ts — AUTO-GENERATED
+// ⚠️  NAME COLLISION: multiple templates map to 'summary'
+// Rename one of the following files to resolve this:
+//   src/auth/summary.tpl.md
+//   src/search/summary.tpl.md
+// Until then, the duplicate declarations below will cause TypeScript errors.
+
+import TEMPLATE_1 from "../../src/auth/summary.tpl.md" with { type: "text" };
+import TEMPLATE_2 from "../../src/search/summary.tpl.md" with { type: "text" };
+
+// ↓ from src/auth/summary.tpl.md
+export function buildSummaryPrompt(): string { ... }
+
+// ↓ from src/search/summary.tpl.md  ← TypeScript: Duplicate function implementation
+export function buildSummaryPrompt(): string { ... }
+```
+
+The duplicate `buildSummaryPrompt` declarations cause TypeScript to report an error immediately in your IDE. All other prompts continue to generate and compile normally.
 
 ## How to fix
 
 Rename one of the files to be more specific:
 
 ```
-src/auth/auth-summary.tpl.md    → authSummary()
-src/search/search-summary.tpl.md → searchSummary()
+src/auth/auth-summary.tpl.md    → authSummary
+src/search/search-summary.tpl.md → searchSummary
 ```
+
+Re-run `tpl generate` — the collision file is replaced with two separate, clean files.
 
 ## Why not use full paths?
 
-Using the full path (e.g. `authWelcomeEmail`) as the function name makes it harder to refactor and clutters IntelliSense. TPL favors short, semantic names and requires you to choose unique filenames intentionally.
+Using the full path (e.g. `authWelcomeSummary`) as the function name makes it harder to refactor and clutters IntelliSense. TPL favors short, semantic names and requires you to choose unique filenames intentionally — names are a communication contract, not a file address.

@@ -84,7 +84,7 @@ describe("collector", () => {
       expect(names).toEqual(["a", "b", "c"]);
     });
 
-    it("parses templates correctly", async () => {
+    it("parses templates correctly with VariableDef", async () => {
       await writeTemplate(
         "src/welcome.tpl.md",
         "---\ndescription: Welcome message\n---\nHello {{userName}}!"
@@ -95,7 +95,8 @@ describe("collector", () => {
       const t = templates[0]!;
       expect(t.functionName).toBe("welcome");
       expect(t.description).toBe("Welcome message");
-      expect(t.variables).toEqual(["userName"]);
+      expect(t.variables).toHaveLength(1);
+      expect(t.variables[0]).toMatchObject({ name: "userName", type: "string", optional: false });
     });
   });
 
@@ -111,18 +112,35 @@ describe("collector", () => {
       expect(files).toContain("index.ts");
     });
 
-    it("each prompt file contains the function", async () => {
+    it("each prompt file imports the source .tpl.md and uses renderTemplate", async () => {
       await writeTemplate("src/greet.tpl.md", "Hello {{name}}");
       const out = outputDir();
 
       await generate({ rootDir, outputDir: out });
 
       const content = await readFile(join(out, "greet.ts"), "utf-8");
-      expect(content).toContain("export function greet");
+      expect(content).toContain("export function buildGreetPrompt");
       expect(content).toContain("AUTO-GENERATED");
+      expect(content).toContain("renderTemplate");
+      expect(content).toContain(`import TEMPLATE from`);
+      expect(content).toContain(`.tpl.md" with { type: "text" }`);
+      expect(content).not.toContain("const TEMPLATE");
     });
 
-    it("index.ts re-exports all prompts and defines prompts const", async () => {
+    it("generates tpl.d.ts with ambient module declaration", async () => {
+      await writeTemplate("src/greet.tpl.md", "Hello");
+      const out = outputDir();
+
+      await generate({ rootDir, outputDir: out });
+
+      const files = await readdir(out);
+      expect(files).toContain("tpl.d.ts");
+
+      const dts = await readFile(join(out, "tpl.d.ts"), "utf-8");
+      expect(dts).toContain(`declare module "*.tpl.md"`);
+    });
+
+    it("index.ts re-exports all prompts and defines prompts const with short keys", async () => {
       await writeTemplate("src/a.tpl.md", "A {{x}}");
       await writeTemplate("src/b.tpl.md", "B {{y}}");
       const out = outputDir();
@@ -130,11 +148,22 @@ describe("collector", () => {
       await generate({ rootDir, outputDir: out });
 
       const index = await readFile(join(out, "index.ts"), "utf-8");
-      expect(index).toContain(`export * from "./a.js"`);
-      expect(index).toContain(`export * from "./b.js"`);
+      expect(index).toContain(`export * from "./a"`);
+      expect(index).toContain(`export * from "./b"`);
+      expect(index).not.toContain(".js");
       expect(index).toContain("export const prompts");
-      expect(index).toContain("a,");
-      expect(index).toContain("b,");
+      expect(index).toContain("a: buildAPrompt,");
+      expect(index).toContain("b: buildBPrompt,");
+    });
+
+    it("index.ts exports renderPrompt", async () => {
+      await writeTemplate("src/greet.tpl.md", "Hello");
+      const out = outputDir();
+
+      await generate({ rootDir, outputDir: out });
+
+      const index = await readFile(join(out, "index.ts"), "utf-8");
+      expect(index).toContain("export function renderPrompt(");
     });
 
     it("creates output directory if it does not exist", async () => {
@@ -158,13 +187,22 @@ describe("collector", () => {
       expect(result.templates).toHaveLength(2);
     });
 
-    it("throws on name collision", async () => {
+    it("name collision: generates a collision file instead of throwing", async () => {
       await writeTemplate("src/greet.tpl.md", "Hello");
       await writeTemplate("other/greet.tpl.md", "Hi");
+      const out = outputDir();
 
-      await expect(
-        generate({ rootDir, outputDir: outputDir() })
-      ).rejects.toThrow(/greet/);
+      // Must NOT reject — generation continues with a collision marker
+      const result = await generate({ rootDir, outputDir: out });
+
+      const files = await readdir(out);
+      expect(files).toContain("greet.ts");
+
+      const content = await readFile(join(out, "greet.ts"), "utf-8");
+      expect(content).toContain("NAME COLLISION");
+
+      // Only one unique name, so count is 1 (deduplicated)
+      expect(result.count).toBe(2); // 2 templates parsed
     });
 
     it("removes stale prompt files when a template is deleted", async () => {
@@ -197,12 +235,15 @@ describe("collector", () => {
 
       const promptFile = await readFile(join(out, "welcomeEmail.ts"), "utf-8");
       expect(promptFile).toContain("export interface WelcomeEmailVariables");
-      expect(promptFile).toContain("export function welcomeEmail");
-      expect(promptFile).toContain("${vars.userName}");
-      expect(promptFile).toContain("${vars.product}");
+      expect(promptFile).toContain("export function buildWelcomeEmailPrompt");
+      expect(promptFile).toContain("renderTemplate(TEMPLATE, vars)");
+      expect(promptFile).toContain(`import TEMPLATE from`);
+      expect(promptFile).toContain(`.tpl.md" with { type: "text" }`);
+      expect(promptFile).not.toContain("const TEMPLATE");
 
       const index = await readFile(join(out, "index.ts"), "utf-8");
       expect(index).toContain("export const prompts");
+      expect(index).toContain("welcomeEmail: buildWelcomeEmailPrompt");
     });
   });
 });

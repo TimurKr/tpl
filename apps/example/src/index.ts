@@ -1,16 +1,25 @@
-// This file shows how you'd use the generated lib/tpl.ts in your app.
-// Run `tpl generate` first to create lib/tpl.ts.
+// This file shows how you'd use the generated prompts in your app.
+// Run `tpl watch` during development — it regenerates on every .tpl.md save.
 
-// In a real app, you'd import from the generated file:
-// import { welcomeEmail, searchQuery, prompts } from "../lib/tpl.js";
-
-// Example usage (commented out since lib/tpl.ts is gitignored):
-// const prompt = welcomeEmail({
+// Recommended: import the prompts object and use short names
+// import { prompts } from "../lib/prompts/index.ts";
+//
+// const prompt = prompts.welcomeEmail({
 //   userName: "Alice",
 //   productName: "Acme AI",
 //   planType: "Pro",
+//   basePersona: {},
 // });
 // console.log(prompt);
 
-console.log("Run `tpl generate` to generate lib/tpl.ts, then use the typed functions in your app.");
-console.log("See the .tpl.md files in src/ for examples.");
+// For tree-shaking / single import use the build function directly:
+// import { buildWelcomeEmailPrompt } from "../lib/prompts/welcomeEmail.ts";
+
+// For dynamic dispatch by name:
+// import { renderPrompt } from "../lib/prompts/index.ts";
+//
+// const prompt = renderPrompt("welcomeEmail", { userName: "Alice", ... });
+
+console.log("Run `tpl watch` during development.");
+console.log("Run `tpl generate` in CI/CD.");
+console.log("Generated prompts live in lib/prompts/.");

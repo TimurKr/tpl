@@ -1,15 +1,17 @@
 ---
-title: "Includes"
+title: "Includes (Partials)"
 description: "Share prompt snippets across files."
 ---
 
-Includes let you define reusable prompt snippets and compose them into larger prompts.
+Includes let you define reusable prompt snippets — base personas, safety guidelines, output format instructions — and compose them into larger prompts.
 
 ## Syntax
 
 ```markdown
-{{> path/to/prompt}}
+{{> name}}
 ```
+
+Reference by camelCase or kebab-case name. No path needed.
 
 ## Example
 
@@ -18,27 +20,60 @@ You are a helpful, concise, and professional AI assistant.
 ```
 
 ```markdown src/features/email.tpl.md
-{{> src/shared/base-persona}}
+{{> basePersona}}
 
 Write a welcome email to {{userName}}.
 ```
 
-The generated function will have the base persona inlined at code generation time.
-
 ## Resolution
 
-Includes always resolve from the **project root** — the directory containing your `package.json`.
+Includes resolve by **function name** — the camelCase stem derived from the file name. Both forms work:
 
-```
-{{> shared/base-persona}}
-→ <projectRoot>/shared/base-persona.tpl.md
+```markdown
+{{> basePersona}}        ← camelCase name
+{{> base-persona}}       ← kebab-case stem
+{{> src/shared/base-persona}}  ← full path (also works, for backward compat)
 ```
 
-This is unambiguous regardless of where the including file lives in the directory tree.
+Names must be unique across the project. If two files produce the same name, a TypeScript error is generated in the output file.
+
+## Partial variables
+
+If a partial has its own variables (or configurable variables anywhere in its subtree), they appear as a typed field in the parent's interface:
+
+```typescript
+// assistant.tpl.md has {{tone|professional}}
+export interface AssistantVariables {
+  tone?: string;
+}
+
+// ticket-summary.tpl.md uses {{> assistant}}
+export interface TicketSummaryVariables {
+  ticketContent: string;
+  resolution: string;
+  assistant: AssistantVariables; // ← exposed because assistant has variables
+}
+```
+
+Partials with no variables — and no variables anywhere in their include tree — are rendered automatically. They don't appear in the interface and the caller never needs to supply them:
+
+```typescript
+// base-persona.tpl.md has no variables
+// welcome-email.tpl.md uses {{> basePersona}}
+
+export interface WelcomeEmailVariables {
+  userName: string;
+  productName: string;
+  planType: string;
+  // no basePersona field — it's auto-rendered
+}
+
+prompts.welcomeEmail({ userName: "Alice", productName: "Acme AI", planType: "Pro" });
+```
 
 ## Nested includes
 
-Includes can themselves include other files:
+Partials can themselves include other files:
 
 ```markdown base.tpl.md
 You are professional.
@@ -56,8 +91,15 @@ Write to {{userName}}.
 
 ## Circular include detection
 
-TPL detects circular includes and reports them with the full include chain:
+Circular includes produce a TypeScript error in the generated file (rather than halting generation entirely, so all other prompts still compile):
 
+```typescript
+// ⚠️  CIRCULAR INCLUDE DETECTED
+// Circular include detected: email → persona → email
+// Fix the circular {{> ...}} reference in your template, then re-run tpl generate.
+
+// @ts-expect-error ⚠️ circular include — the line below is intentionally valid so this directive errors
+export function buildEmailPrompt(): string { return ""; }
 ```
-Error: Circular include detected: email → persona → email
-```
+
+The `@ts-expect-error` on a valid line causes TypeScript to report an "Unused directive" error, surfacing the problem in your IDE without a build failure.

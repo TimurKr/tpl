@@ -5,40 +5,33 @@ description: "The Prisma moment for prompts — drop .tpl.md files, get fully-ty
 
 # TPL — The Prompting Library
 
-TPL solves a simple but painful problem: prompts live as inline string literals scattered across AI app codebases. They're invisible until you read the code, editing them requires touching application logic, and there's no type safety on variable injection.
+Prompts are too important to live as inline strings buried in your code.
 
-## What TPL does
-
-Drop a `.tpl.md` file anywhere in your repo. Use `{{variableName}}` syntax. A file watcher auto-generates a single TypeScript file exporting fully-typed functions for each prompt.
+TPL gives them their own files. Drop a `.tpl.md` anywhere, use `{{variableName}}` syntax, and get a fully-typed TypeScript function — automatically, on every save.
 
 ```markdown welcome-email.tpl.md
----
-description: Welcome email for new users
----
-
 Write a warm welcome email to {{userName}} who just signed up for {{productName}}.
 Their plan is {{planType}}. Keep it under 150 words.
 ```
 
-TPL watches this file and generates:
+```typescript
+import { prompts } from "./lib/prompts/index.ts";
 
-```typescript lib/tpl.ts (auto-generated)
-export interface WelcomeEmailVariables {
-  userName: string;
-  productName: string;
-  planType: string;
-}
-
-export function welcomeEmail(vars: WelcomeEmailVariables): string {
-  return `Write a warm welcome email to ${vars.userName}...`;
-}
+const prompt = prompts.welcomeEmail({
+  userName: "Alice",
+  productName: "Acme AI",
+  planType: "Pro",
+});
+// Wrong variable → compile error. Missing field → compile error.
 ```
+
+That's the core idea. Run `tpl watch` in your dev script and the typed functions stay in sync as you edit the Markdown.
 
 ## Why not AgentMark or Prompty?
 
 TPL is radically simpler:
 - No MDX
-- No YAML frontmatter required  
+- No YAML frontmatter required
 - No evaluation framework
 - Just Markdown + a naming convention
 
@@ -46,189 +39,17 @@ TPL is radically simpler:
 
 <CardGroup cols={2}>
   <Card title="Zero config" icon="bolt">
-    Drop `.tpl.md` files anywhere. No setup required.
+    Drop `.tpl.md` files anywhere. No setup required. Output goes to `lib/prompts/` by default.
   </Card>
   <Card title="Full type safety" icon="shield-check">
-    Can't pass the wrong variable at compile time. IntelliSense works.
+    Can't pass the wrong variable at compile time. IntelliSense shows every prompt and its parameters.
   </Card>
   <Card title="Co-located prompts" icon="folder">
-    Prompts live next to the code that uses them.
+    Prompts live next to the code that uses them. Generated output collects in one place.
   </Card>
-  <Card title="Include system" icon="link">
-    Share prompt snippets across files with `{{> shared/persona}}`.
+  <Card title="Rich syntax" icon="code">
+    Typed variables, optional defaults, conditionals, and composable partials.
   </Card>
 </CardGroup>
 
----
-
-## Adopt TPL in an existing codebase
-
-Already have a codebase with scattered inline prompts? Give this prompt to your AI agent — it will find every inline prompt, extract it into `.tpl.md` files, and refactor the call sites to use typed functions.
-
-<Tip>
-  Click **Copy** on the code block below, then paste it directly into your AI agent (Cursor, Claude, Copilot, etc.).
-</Tip>
-
-```text Adopt TPL — AI Agent Prompt
-You are helping adopt TPL (The Prompting Library) in this codebase.
-
-TPL turns scattered inline prompt strings into typed TypeScript functions. You drop
-.tpl.md files anywhere in the repo, run `tpl generate`, and get fully-typed functions
-with IntelliSense — wrong variables become compile errors, not runtime surprises.
-
-───────────────────────────────────────────
-STEP 1 — INSTALL TPL
-───────────────────────────────────────────
-
-Run the appropriate command for this project's package manager:
-
-  npm install -D the-prompting-library
-  # or: bun add -D the-prompting-library
-  # or: pnpm add -D the-prompting-library
-
-Then update package.json scripts so TPL runs automatically:
-
-  "scripts": {
-    "dev":   "tpl watch & <existing-dev-command>",
-    "build": "tpl generate && <existing-build-command>"
-  }
-
-───────────────────────────────────────────
-STEP 2 — FIND ALL INLINED PROMPTS
-───────────────────────────────────────────
-
-Search the entire codebase for inline prompt strings. Look for:
-
-• Template literals or strings assigned to variables named:
-    prompt, systemPrompt, userPrompt, systemMessage, instructions, or similar
-• String arguments passed directly to AI SDK calls:
-    generateText(), streamText(), chat.completions.create(),
-    openai(), anthropic(), or any LLM client call
-• Long strings in messages arrays: [{ role: "system", content: "..." }]
-• Any string that contains instructions written in natural language to an LLM
-
-For each match, note the file path, variable name, and which template variables
-are interpolated into the string (${variable} or ${obj.property}).
-
-───────────────────────────────────────────
-STEP 3 — EXTRACT EACH PROMPT INTO A .tpl.md FILE
-───────────────────────────────────────────
-
-For each inlined prompt:
-
-1. Create a .tpl.md file co-located with the source file that uses it.
-   Naming convention: use kebab-case matching the prompt's purpose.
-   Example: src/features/email/welcome-email.tpl.md
-
-2. Paste the prompt body into the file. Replace every interpolated expression
-   with a {{camelCase}} placeholder named after what it represents
-   (not where it comes from).
-
-3. Add an optional frontmatter description (helps with IntelliSense JSDoc):
-
-   ---
-   description: One-line description of what this prompt does
-   ---
-
-EXAMPLE — before (inline string in route.ts):
-
-  const prompt = `Write a welcome email to ${user.name} for ${productName}.
-  Their plan is ${user.subscription.tier}. Keep it under 150 words.`;
-
-AFTER — src/features/email/welcome-email.tpl.md:
-
-  ---
-  description: Welcome email for new users
-  ---
-
-  Write a welcome email to {{userName}} for {{productName}}.
-  Their plan is {{planType}}. Keep it under 150 words.
-
-Variable rules:
-• Always camelCase
-• Name for what the value represents, not its origin (userName not userNameProp)
-• All variables are required — no optional variables in TPL
-
-───────────────────────────────────────────
-STEP 4 — HANDLE SHARED CONTENT WITH INCLUDES
-───────────────────────────────────────────
-
-If you find repeated content across multiple prompts (e.g. a base persona,
-safety guidelines, or output format instructions), extract it once:
-
-  src/shared/base-persona.tpl.md:
-    You are a helpful, concise assistant. Respond professionally.
-
-Then reference it in other .tpl.md files:
-
-  {{> src/shared/base-persona}}
-
-  Write a welcome email to {{userName}}...
-
-Includes always resolve from the project root, regardless of where the
-including file lives. They are inlined at code-generation time, not runtime.
-
-───────────────────────────────────────────
-STEP 5 — RUN THE GENERATOR
-───────────────────────────────────────────
-
-  npx tpl generate
-
-This scans the repo for all .tpl.md files and outputs one TypeScript file
-per prompt into lib/tpl/ (configurable via "tpl" key in package.json).
-
-Check the output — it should list every prompt you created with no errors.
-If a prompt is missing, verify the file ends in .tpl.md and is not in
-node_modules, dist, or .git.
-
-───────────────────────────────────────────
-STEP 6 — REFACTOR EVERY CALL SITE
-───────────────────────────────────────────
-
-Replace each inline prompt string with the generated typed function.
-
-BEFORE:
-
-  import { openai } from "@ai-sdk/openai";
-  import { generateText } from "ai";
-
-  const prompt = `Write a welcome email to ${user.name} for ${productName}...`;
-  const { text } = await generateText({ model: openai("gpt-4o"), prompt });
-
-AFTER:
-
-  import { welcomeEmail } from "./lib/tpl/index.js";
-  import { openai } from "@ai-sdk/openai";
-  import { generateText } from "ai";
-
-  const prompt = welcomeEmail({
-    userName: user.name,
-    productName,
-    planType: user.subscription.tier,
-  });
-  const { text } = await generateText({ model: openai("gpt-4o"), prompt });
-
-TypeScript will produce a compile error if you:
-• Forget a required variable
-• Pass a variable that does not exist in the template
-• Pass a non-string value
-
-───────────────────────────────────────────
-STEP 7 — VERIFY
-───────────────────────────────────────────
-
-1. npx tpl generate     → should list N prompts with zero errors
-2. tsc --noEmit         → no type errors at call sites
-3. Run the test suite   → prompts should behave identically to before
-4. Add lib/tpl/ to .gitignore — it is generated at build time
-
-───────────────────────────────────────────
-DONE
-───────────────────────────────────────────
-
-Every prompt in the codebase is now:
-  ✓ Typed     — wrong variable = compile error, not a runtime surprise
-  ✓ Visible   — IntelliSense shows every prompt and its parameters
-  ✓ Editable  — change the .tpl.md, never touch application logic
-  ✓ Co-located — lives next to the feature that uses it
-```
+→ [Quickstart](/quickstart)

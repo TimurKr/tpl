@@ -10,7 +10,7 @@ TPL is zero-config by default. Add a `"tpl"` key to your `package.json` to custo
 ```json package.json
 {
   "tpl": {
-    "output": "lib/tpl.ts",
+    "output": "lib/prompts",
     "pattern": "**/*.tpl.md",
     "ignore": ["src/vendor/**"]
   }
@@ -19,7 +19,7 @@ TPL is zero-config by default. Add a `"tpl"` key to your `package.json` to custo
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `output` | `string` | `"lib/tpl.ts"` | Relative path for the generated file |
+| `output` | `string` | `"lib/prompts"` | Relative path for the generated output directory |
 | `pattern` | `string` | `"**/*.tpl.md"` | Glob pattern for finding prompt files |
 | `ignore` | `string[]` | `[]` | Additional glob patterns to ignore |
 
@@ -32,12 +32,12 @@ By default, TPL always ignores:
 
 These cannot be overridden.
 
-## Gitignore recommendation
+## Gitignore
 
-Add the generated file to `.gitignore`:
+The generated `lib/prompts/` directory can be gitignored and regenerated at build time:
 
 ```gitignore
-lib/tpl.ts
+lib/prompts/
 ```
 
-It's auto-generated and should be regenerated at build time.
+Or commit it — both are valid. Committing the generated files means diffs are visible in PRs and CI doesn't need to run `tpl generate` before type-checking.
