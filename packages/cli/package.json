@@ -1,6 +1,6 @@
 {
   "name": "the-prompting-library",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "The Prompting Library — drop .tpl.md files, get fully-typed TypeScript functions.",
   "type": "module",
   "bin": {
@@ -49,12 +49,12 @@
     "node": ">=18.0.0"
   },
   "devDependencies": {
+    "@tpl/core": "workspace:*",
     "@types/node": "^25.6.0",
     "tsup": "^8.0.0",
     "typescript": "^5.4.5"
   },
   "dependencies": {
-    "@tpl/core": "workspace:*",
     "chokidar": "^3.6.0",
     "commander": "^12.0.0"
   }
