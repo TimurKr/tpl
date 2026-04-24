@@ -32,7 +32,7 @@ Respond in {{language|English}}. Keep responses concise.
 ## Use in a route handler
 
 ```typescript src/app/api/chat/route.ts
-import { prompts } from "@/lib/prompts";
+import { prompts } from "@/lib/tpl";
 
 export async function POST(request: Request) {
   const { messages } = await request.json();
@@ -63,7 +63,7 @@ If you use `@/` path aliases, ensure `lib/` is reachable:
 ## Gitignore (optional)
 
 ```gitignore
-lib/prompts/
+lib/tpl/
 ```
 
 Or commit it — both are valid. Committing means PR diffs show exactly what changed in the generated output.

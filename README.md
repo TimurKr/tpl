@@ -20,7 +20,7 @@ Their plan is {{planType}}. Keep it under 150 words.
 ```
 
 ```typescript
-import { prompts } from "./lib/prompts/index.ts";
+import { prompts } from "./lib/tpl/index.ts";
 
 const text = prompts.welcomeEmail({
   userName: "Alice",
@@ -134,7 +134,7 @@ Before:
   const prompt = `Write a welcome email to ${user.name}...`;
 
 After:
-  import { prompts } from "./lib/prompts/index.ts";
+  import { prompts } from "./lib/tpl/index.ts";
   const prompt = prompts.welcomeEmail({ userName: user.name, planType: plan });
 
 ───────────────────────────────────────────
@@ -182,7 +182,7 @@ Their plan is {{planType}}. Keep it under 150 words.
 Use the generated function:
 
 ```typescript
-import { prompts } from "./lib/prompts/index.ts";
+import { prompts } from "./lib/tpl/index.ts";
 
 const text = prompts.welcomeEmail({
   userName: "Alice",
@@ -199,12 +199,12 @@ const text = prompts.welcomeEmail({
 tpl watch
 ```
 
-Keep this running alongside your dev server. It generates on startup and re-generates within ~50 ms of any `.tpl.md` save. The generated files in `lib/prompts/` are always in sync.
+Keep this running alongside your dev server. It generates on startup and re-generates within ~50 ms of any `.tpl.md` save. The generated files in `lib/tpl/` are always in sync.
 
 ```
-✓ Generated 5 prompt(s) → lib/prompts/
+✓ Generated 5 prompt(s) → lib/tpl/
 ~ Detected change: src/features/auth/welcome-email.tpl.md
-✓ Generated 5 prompt(s) → lib/prompts/
+✓ Generated 5 prompt(s) → lib/tpl/
 ```
 
 ## CI / production
@@ -225,10 +225,10 @@ One-shot generation for build pipelines. Run it before your TypeScript compiler 
 
 ## Gitignore
 
-`lib/prompts/` is generated from your `.tpl.md` source files, so you can gitignore it and regenerate at build time:
+`lib/tpl/` is generated from your `.tpl.md` source files, so you can gitignore it and regenerate at build time:
 
 ```gitignore
-lib/prompts/
+lib/tpl/
 ```
 
 Or commit it — both are valid. Committing the generated files means diffs are visible in PRs and CI doesn't need to run `tpl generate` before type-checking.
@@ -303,7 +303,7 @@ Zero config needed. Override via the `"tpl"` key in `package.json`:
 ```json
 {
   "tpl": {
-    "output": "lib/prompts",
+    "output": "lib/tpl",
     "pattern": "**/*.tpl.md",
     "ignore": ["src/vendor/**"]
   }
@@ -312,7 +312,7 @@ Zero config needed. Override via the `"tpl"` key in `package.json`:
 
 | Key       | Default         | Description                                 |
 | --------- | --------------- | ------------------------------------------- |
-| `output`  | `"lib/prompts"` | Output directory (relative to project root) |
+| `output`  | `"lib/tpl"` | Output directory (relative to project root) |
 | `pattern` | `"**/*.tpl.md"` | Glob pattern for finding prompt files       |
 | `ignore`  | `[]`            | Additional patterns to ignore               |
 

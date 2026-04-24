@@ -18,7 +18,7 @@ description: "Under the hood: parsing, codegen, and the watch loop."
      ↓
   TypeScript interfaces + build functions generated
      ↓
-  lib/prompts/ written to disk (one .ts per template + index.ts)
+  lib/tpl/ written to disk (one .ts per template + index.ts)
 ```
 
 ## File naming → function names
@@ -36,7 +36,7 @@ Names must be unique across the entire project. Two files that produce the same 
 ## The `index.ts` exports
 
 ```typescript
-// lib/prompts/index.ts
+// lib/tpl/index.ts
 export const prompts = {
   welcomeEmail: buildWelcomeEmailPrompt,
   searchQuery:  buildSearchQueryPrompt,

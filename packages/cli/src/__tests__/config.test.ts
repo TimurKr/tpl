@@ -79,7 +79,7 @@ describe("buildOptions", () => {
   it("uses defaults when config is empty", () => {
     const opts = buildOptions("/project", {});
     expect(opts.rootDir).toBe("/project");
-    expect(opts.outputDir).toBe("/project/lib/prompts");
+    expect(opts.outputDir).toBe("/project/lib/tpl");
     expect(opts.pattern).toBe("**/*.tpl.md");
     expect(opts.ignore).toEqual([]);
   });

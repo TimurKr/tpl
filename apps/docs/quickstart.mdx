@@ -15,7 +15,7 @@ Text: {{inputText}}
 ```
 
 ```typescript
-import { prompts } from "./lib/prompts/index.ts";
+import { prompts } from "./lib/tpl/index.ts";
 
 const prompt = prompts.summarize({
   wordCount: 50,
@@ -125,7 +125,7 @@ Before:
   const prompt = `Write a welcome email to ${user.name}...`;
 
 After:
-  import { prompts } from "./lib/prompts/index.ts";
+  import { prompts } from "./lib/tpl/index.ts";
   const prompt = prompts.welcomeEmail({ userName: user.name, planType: plan });
 
 ───────────────────────────────────────────
@@ -183,13 +183,13 @@ npx tpl watch
 
 ```
 👁  Watching for .tpl.md changes in /your/project
-✓ Generated 1 prompt(s) → lib/prompts/
+✓ Generated 1 prompt(s) → lib/tpl/
 ```
 
 **Use the generated function:**
 
 ```typescript
-import { prompts } from "./lib/prompts/index.ts";
+import { prompts } from "./lib/tpl/index.ts";
 
 const prompt = prompts.summarize({
   wordCount: 50,
@@ -201,5 +201,5 @@ IntelliSense works. Missing variables are compile errors. Wrong types are compil
 
 <Tip>
   For tree-shaking or when you only need one prompt, import the build function directly:
-  `import { buildSummarizePrompt } from "./lib/prompts/summarize.ts";`
+  `import { buildSummarizePrompt } from "./lib/tpl/summarize.ts";`
 </Tip>

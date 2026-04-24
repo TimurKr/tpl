@@ -28,7 +28,7 @@ jobs:
         run: bun run --filter='./packages/*' test
 
       - name: Smoke test — generate example
-        run: node packages/cli/dist/index.js generate --cwd apps/example
+        run: node packages/cli/dist/index.cjs generate --cwd apps/example
 
   release:
     name: Tag & release

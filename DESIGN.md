@@ -62,7 +62,7 @@ src/
   shared/
     base-persona.tpl.md     ← shared partial
 
-lib/prompts/                ← generated output
+lib/tpl/                ← generated output
   index.ts                  ← prompts const + renderPrompt()
   welcomeEmail.ts           ← one file per template
   basePersona.ts
@@ -76,7 +76,7 @@ lib/prompts/                ← generated output
 Each template produces its own `.ts` file. The source `.tpl.md` is **imported directly** — content is never duplicated into the TypeScript output:
 
 ```typescript
-// lib/prompts/welcomeEmail.ts
+// lib/tpl/welcomeEmail.ts
 /// <reference path="./tpl.d.ts" />
 
 import { renderTemplate } from "the-prompting-library/runtime";
@@ -105,13 +105,13 @@ Every template always exports its interface (even if empty), so parent templates
 ## Consumer API
 
 ```typescript
-import { prompts, renderPrompt } from "./lib/prompts/index.ts";
+import { prompts, renderPrompt } from "./lib/tpl/index.ts";
 
 // Recommended: short key via prompts object
 prompts.welcomeEmail({ userName: "Alice", productName: "Acme", basePersona: {} });
 
 // Tree-shaking: import a single build function
-import { buildWelcomeEmailPrompt } from "./lib/prompts/welcomeEmail.ts";
+import { buildWelcomeEmailPrompt } from "./lib/tpl/welcomeEmail.ts";
 
 // Dynamic dispatch: template name from config or user input
 renderPrompt("welcomeEmail", { userName: "Alice", productName: "Acme", basePersona: {} });

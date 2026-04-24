@@ -316,7 +316,7 @@ function generateIndexFile(uniqueNames: string[]): string {
   lines.push(` * All prompt builder functions, keyed by their short name.`);
   lines.push(` *`);
   lines.push(` * @example`);
-  lines.push(` * import { prompts } from "./lib/prompts";`);
+  lines.push(` * import { prompts } from "./lib/tpl";`);
   lines.push(` * const text = prompts.summarize({ topic: "AI", wordCount: "50" });`);
   lines.push(` */`);
   lines.push(`export const prompts = {`);
