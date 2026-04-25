@@ -29,6 +29,7 @@ export async function collect(
     ignore,
   });
 
+  files.sort();
   return Promise.all(files.map((f) => parseTemplate(f, options.rootDir)));
 }
 
