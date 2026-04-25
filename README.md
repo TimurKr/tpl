@@ -48,14 +48,18 @@ const { text } = await generateText({
 - AI coding agents understand files better than mystery strings buried in handlers.
 - Markdown is the best prompt editor we already have.
 
-## Using an AI Coding Agent?
+## Quick start
 
-You probably do not want to wire this up by hand. Fair.
+Paste this to your coding agent:
 
-Copy the prompt below into Cursor, Claude Code, Copilot, or your agent of choice. It tells the agent how to install TPL, add the scripts, extract existing inline prompts, refactor call sites, and verify everything.
+```text
+Add TPL to this repo. Read the full agent setup prompt in the TPL README and follow it closely: https://github.com/TimurKr/tpl#quick-start
+```
+
+Want to review what you just asked the machine to do? Expand this:
 
 <details>
-<summary><strong>Copy the full agent setup prompt</strong></summary>
+<summary><strong>See the full agent setup prompt</strong></summary>
 
 ```text
 You are helping add TPL (The Prompting Library) to this TypeScript codebase.
@@ -174,13 +178,15 @@ Implementation steps:
 
 </details>
 
-## Quick start
+Manual setup:
+
+### 1. Install
 
 ```bash
 npm install -D the-prompting-library
 ```
 
-Add it to your scripts:
+### 2. Add scripts
 
 ```json
 {
@@ -193,7 +199,7 @@ Add it to your scripts:
 
 Replace `next dev` / `next build` with your app's commands, or run `tpl watch` in a separate terminal.
 
-Create a prompt:
+### 3. Create a prompt
 
 ```markdown
 <!-- src/features/auth/welcome-email.tpl.md -->
@@ -201,7 +207,7 @@ Write a welcome email to {{userName}} for {{productName}}.
 Keep it under {{wordCount:number|150}} words.
 ```
 
-Run the watcher:
+### 4. Run the watcher
 
 ```bash
 npm run dev
@@ -215,7 +221,7 @@ lib/tpl.gen.ts
 lib/tpl.gen.env.d.ts
 ```
 
-Use it:
+### 5. Use it
 
 ```typescript
 import { prompts } from "./lib/tpl.gen.js";
