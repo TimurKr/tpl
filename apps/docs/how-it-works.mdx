@@ -18,10 +18,10 @@ description: "Under the hood: parsing, codegen, and the watch loop."
      ↓
   TypeScript interfaces + build functions generated
      ↓
-  lib/tpl/ written to disk (one .ts per template + index.ts)
+  sibling .tpl.gen.ts files + lib/tpl.gen.ts manifest written to disk
 ```
 
-Relative imports between generated `.ts` files use **`.js` specifiers** (e.g. `from "./welcomeEmail.js"`) for strict ESM and TypeScript `Node16` / `NodeNext` compatibility.
+Relative imports between generated `.ts` files use **`.js` specifiers** (e.g. `from "./welcome-email.tpl.gen.js"`) for strict ESM and TypeScript `Node16` / `NodeNext` compatibility.
 
 ## File naming → function names
 
@@ -35,10 +35,12 @@ The camelCase function name is derived from the file stem:
 
 Names must be unique across the entire project. Two files that produce the same name are both emitted into a single collision file with duplicate declarations, which TypeScript flags as errors — you'll see them immediately in the IDE.
 
-## The `index.ts` exports
+Generated filenames preserve the template stem exactly: `welcome-email.tpl.md` generates `welcome-email.tpl.gen.ts`.
+
+## The manifest exports
 
 ```typescript
-// lib/tpl/index.ts
+// lib/tpl.gen.ts
 export const prompts = {
   welcomeEmail: buildWelcomeEmailPrompt,
   searchQuery:  buildSearchQueryPrompt,

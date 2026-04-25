@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import { runCheck } from "./commands/check.js";
 import { runGenerate } from "./commands/generate.js";
 import { runWatch } from "./commands/watch.js";
 
@@ -14,7 +15,7 @@ program
 program
   .command("generate")
   .alias("g")
-  .description("Generate lib/tpl.ts from all .tpl.md files (one-shot)")
+  .description("Generate typed prompt files from all .tpl.* files (one-shot)")
   .option("--cwd <dir>", "Working directory (defaults to process.cwd())")
   .option("--output <path>", "Override output file path")
   .action(async (opts) => {
@@ -22,9 +23,19 @@ program
   });
 
 program
+  .command("check")
+  .alias("c")
+  .description("Check generated prompt files are up to date")
+  .option("--cwd <dir>", "Working directory (defaults to process.cwd())")
+  .option("--output <path>", "Override output file path")
+  .action(async (opts) => {
+    await runCheck({ cwd: opts.cwd, output: opts.output });
+  });
+
+program
   .command("watch")
   .alias("w")
-  .description("Watch for .tpl.md changes and regenerate automatically")
+  .description("Watch for .tpl.* changes and regenerate automatically")
   .option("--cwd <dir>", "Working directory (defaults to process.cwd())")
   .option("--output <path>", "Override output file path")
   .action(async (opts) => {

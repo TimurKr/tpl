@@ -2,7 +2,7 @@
 
 ## What this is
 
-**The Prompting Library (tpl)** — a CLI + codegen tool that turns `.tpl.md` template files into typed TypeScript functions. Each template becomes a `build<Name>Prompt(vars: <Name>Variables): string` function with full compile-time type safety.
+**The Prompting Library (tpl)** — a CLI + codegen tool that turns `.tpl.*` template files into typed TypeScript functions. Each template gets a sibling `.tpl.gen.ts` file with a `build<Name>Prompt(vars: <Name>Variables): string` function and full compile-time type safety.
 
 ## Repo layout
 
@@ -44,7 +44,7 @@ bun test packages/core
 bun test packages/cli
 ```
 
-The example app generates into `apps/example/lib/tpl/` — the default output directory. If you change codegen behaviour, re-run the smoke test:
+The example app generates sibling `*.tpl.gen.ts` files and a manifest at `apps/example/lib/tpl.gen.ts`. If you change codegen behaviour, re-run the smoke test:
 
 ```bash
 node packages/cli/dist/index.cjs generate --cwd apps/example

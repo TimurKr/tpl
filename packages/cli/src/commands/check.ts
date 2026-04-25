@@ -1,8 +1,8 @@
 import path from "path";
-import { generate } from "@tpl/core";
+import { check } from "@tpl/core";
 import { findProjectRoot, readConfig, buildOptions } from "../config.js";
 
-export async function runGenerate(options: {
+export async function runCheck(options: {
   cwd?: string;
   output?: string;
 }): Promise<void> {
@@ -19,16 +19,28 @@ export async function runGenerate(options: {
   }
 
   const config = readConfig(projectRoot);
-  const generateOptions = buildOptions(projectRoot, config);
+  const checkOptions = buildOptions(projectRoot, config);
 
   if (options.output) {
-    generateOptions.outputFile = path.resolve(cwd, options.output);
+    checkOptions.outputFile = path.resolve(cwd, options.output);
   }
 
   try {
-    const result = await generate(generateOptions);
+    const result = await check(checkOptions);
     const rel = path.relative(projectRoot, result.outputFile);
-    process.stdout.write(`✓ Generated ${result.count} prompt(s) → ${rel}\n`);
+
+    if (result.ok) {
+      process.stdout.write(`✓ Generated prompts are up to date → ${rel}\n`);
+      return;
+    }
+
+    process.stderr.write(`Generated prompts are out of date. Run \`tpl generate\`.\n`);
+    for (const issue of result.issues) {
+      process.stderr.write(
+        `  ${issue.kind.padEnd(7)} ${path.relative(projectRoot, issue.filePath)}\n`
+      );
+    }
+    process.exit(1);
   } catch (err) {
     process.stderr.write(
       `Error: ${err instanceof Error ? err.message : String(err)}\n`

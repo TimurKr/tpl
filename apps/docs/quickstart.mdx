@@ -17,7 +17,7 @@ Text: {{inputText}}
 With strict ESM (`Node16` / `NodeNext`), import using a **`.js` extension** (TypeScript maps it to the `.ts` file):
 
 ```typescript
-import { prompts } from "./lib/tpl/index.js";
+import { prompts } from "./lib/tpl.gen.js";
 
 const prompt = prompts.summarize({
   wordCount: 50,
@@ -58,16 +58,16 @@ npm run dev
 # or: npx tpl watch
 ```
 
-You should see a success line with the output directory (default `lib/tpl/`).
+You should see a success line with the manifest path (default `lib/tpl.gen.ts`).
 
 ### 4. Add your first `.tpl.md` and verify
 
-Create e.g. `src/features/summarize/summarize.tpl.md`, save, and check the terminal for a quick regenerate. Open `lib/tpl/`: you should see new modules plus `index.ts`. If that works, the loop is correct.
+Create e.g. `src/features/summarize/summarize.tpl.md`, save, and check the terminal for a quick regenerate. You should see `src/features/summarize/summarize.tpl.gen.ts` beside the template plus `lib/tpl.gen.ts`. If that works, the loop is correct.
 
 ### 5. Import in application code
 
 ```typescript
-import { prompts } from "./lib/tpl/index.js";
+import { prompts } from "./lib/tpl.gen.js";
 ```
 
 ### 6. CI
@@ -94,7 +94,7 @@ STEP 1 — INSTALL & SCRIPTS
 - "dev": prepend `tpl watch &` to the existing dev command, or use `"dev": "tpl watch"`.
 - "build": prepend `tpl generate &&` to the existing build command.
 
-Run dev and confirm the CLI prints generated files (e.g. into lib/tpl/).
+Run dev and confirm the CLI prints generated files (default manifest: `lib/tpl.gen.ts`).
 
 ───────────────────────────────────────────
 STEP 2 — FIND ALL INLINED PROMPTS
@@ -108,13 +108,13 @@ STEP 3 — EXTRACT INTO .tpl.md FILES
 
 For each: create a kebab-case .tpl.md next to the source, use {{placeholders}}, optional frontmatter, shared content via {{> partialName}}.
 
-After saving, the watcher should update the output directory.
+After saving, the watcher should update the sibling `*.tpl.gen.ts` file and manifest.
 
 ───────────────────────────────────────────
 STEP 4 — REFACTOR CALL SITES
 ───────────────────────────────────────────
 
-  import { prompts } from "./lib/tpl/index.js";
+  import { prompts } from "./lib/tpl.gen.js";
 
 ───────────────────────────────────────────
 STEP 5 — VERIFY
@@ -131,5 +131,5 @@ STEP 5 — VERIFY
 ## Tree-shaking
 
 <Tip>
-  Import a single builder with the same ESM pattern: `import { buildSummarizePrompt } from "./lib/tpl/summarize.js"`.
+  Import a single builder with the same ESM pattern: `import { buildSummarizePrompt } from "./src/features/summarize/summarize.tpl.gen.js"`.
 </Tip>

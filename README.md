@@ -20,7 +20,7 @@ Their plan is {{planType}}. Keep it under 150 words.
 ```
 
 ```typescript
-import { prompts } from "./lib/tpl/index.js";
+import { prompts } from "./lib/tpl.gen.js";
 
 const text = prompts.welcomeEmail({
   userName: "Alice",
@@ -36,7 +36,7 @@ Run `tpl watch` in your dev script. Every save regenerates the typed function in
 
 ## Quick start
 
-**Preferred setup:** run **`tpl watch` during development** (Markdown and generated TypeScript never drift) and **`tpl generate` in CI and production builds** (clean checkouts typecheck without the watcher). Start with the watcher, add a template, confirm files appear under the output directory, then import from your app.
+**Preferred setup:** run **`tpl watch` during development** (Markdown and generated TypeScript never drift) and **`tpl generate` in CI and production builds** (clean checkouts typecheck without the watcher). Start with the watcher, add a template, confirm the sibling generated file and manifest appear, then import from your app.
 
 ### 1. Install
 
@@ -58,7 +58,7 @@ npm install -D the-prompting-library
 ```
 
 - **`dev`:** prefix with `tpl watch` (or run `tpl watch` alone if you have no other dev server). The watcher runs an initial generate, then rebuilds on every `.tpl.md` save (~50 ms).
-- **`build`:** prefix with `tpl generate` so CI and `npm run build` always compile against fresh generated files.
+- **`build`:** prefix with `tpl generate` so CI and `npm run build` always compile against fresh generated files. Use `tpl check` in CI if generated files are committed and you want to fail when they drift.
 
 ### 3. Start the listener
 
@@ -67,7 +67,7 @@ npm run dev
 # or: npx tpl watch
 ```
 
-You should see a line like: `Generated N prompt(s) → lib/tpl/`.
+You should see a line like: `Generated N prompt(s) → lib/tpl.gen.ts`.
 
 ### 4. Write your first template
 
@@ -82,21 +82,21 @@ Write a warm welcome email to {{userName}} who just signed up for {{productName}
 Their plan is {{planType}}. Keep it under 150 words.
 ```
 
-Save the file. The terminal should show a short regenerate log within ~50 ms. Open your output directory (default `lib/tpl/`) and confirm new `.ts` files and an `index.ts` appeared. That means the dev loop is working.
+Save the file. The terminal should show a short regenerate log within ~50 ms. Confirm `src/features/auth/welcome-email.tpl.gen.ts` and the default manifest `lib/tpl.gen.ts` appeared. That means the dev loop is working.
 
 ### 5. Use the generated API
 
 With **strict ESM** (`"module": "NodeNext"` / `"moduleResolution": "Node16"` or `NodeNext`), use a **`.js` extension** in relative imports; TypeScript resolves them to the `.ts` sources on disk.
 
 ```typescript
-import { prompts } from "./lib/tpl/index.js";
+import { prompts } from "./lib/tpl.gen.js";
 ```
 
-Or import a single builder: `import { buildWelcomeEmailPrompt } from "./lib/tpl/welcomeEmail.js"`.
+Or import a single builder: `import { buildWelcomeEmailPrompt } from "./src/features/auth/welcome-email.tpl.gen.js"`.
 
 ### 6. CI / production
 
-You already added `tpl generate` to `build`. The same one-shot command is what you run in CI before `tsc` or your bundler, so you never need the watcher on a server.
+You already added `tpl generate` to `build`. The same one-shot command is what you run in CI before `tsc` or your bundler, so you never need the watcher on a server. If generated files are committed, `tpl check` verifies they are up to date without writing.
 
 ---
 
@@ -124,7 +124,7 @@ Add to package.json:
 - "dev": prepend `tpl watch &` to the existing dev command (e.g. `tpl watch & next dev`), or use `"dev": "tpl watch"` if there is no other server.
 - "build": prepend `tpl generate &&` to the existing build command.
 
-Run `npm run dev` (or `npx tpl watch`) and confirm the CLI prints generated output to lib/tpl/ (or the configured output dir).
+Run `npm run dev` (or `npx tpl watch`) and confirm the CLI prints generated output to `lib/tpl.gen.ts` (or the configured manifest path).
 
 ───────────────────────────────────────────
 STEP 2 — FIND ALL INLINED PROMPTS
@@ -171,7 +171,7 @@ After (src/features/email/welcome-email.tpl.md):
   ---
   Write a welcome email to {{userName}}. Plan: {{planType}}.
 
-After saving, the watcher should regenerate. Verify lib/tpl/ (or your output) updates.
+After saving, the watcher should regenerate. Verify the sibling `*.tpl.gen.ts` file and manifest update.
 
 ───────────────────────────────────────────
 STEP 4 — SHARED CONTENT
@@ -193,7 +193,7 @@ STEP 5 — REFACTOR CALL SITES
 Replace each inline prompt with the generated typed function, importing with .js
 for ESM (example):
 
-  import { prompts } from "./lib/tpl/index.js";
+  import { prompts } from "./lib/tpl.gen.js";
   const prompt = prompts.welcomeEmail({ userName: user.name, planType: plan });
 
 ───────────────────────────────────────────
@@ -208,10 +208,10 @@ STEP 6 — VERIFY
 
 ### Manual path (no AI)
 
-If you already added scripts and the watcher in steps 1–3: create a `.tpl.md`, save, confirm `lib/tpl/` updates, then import:
+If you already added scripts and the watcher in steps 1–3: create a `.tpl.md`, save, confirm the sibling `*.tpl.gen.ts` file and `lib/tpl.gen.ts` update, then import:
 
 ```typescript
-import { prompts } from "./lib/tpl/index.js";
+import { prompts } from "./lib/tpl.gen.js";
 
 const text = prompts.welcomeEmail({
   userName: "Alice",
@@ -224,25 +224,15 @@ const text = prompts.welcomeEmail({
 
 ## Development workflow
 
-`tpl watch` (via `npm run dev` or on its own) keeps `lib/tpl/` in sync. On startup and on every save:
+`tpl watch` (via `npm run dev` or on its own) keeps generated prompt files in sync. On startup and on every save:
 
 ```
-✓ Generated 5 prompt(s) → lib/tpl/
+✓ Generated 5 prompt(s) → lib/tpl.gen.ts
 ~ Detected change: src/features/auth/welcome-email.tpl.md
-✓ Generated 5 prompt(s) → lib/tpl/
+✓ Generated 5 prompt(s) → lib/tpl.gen.ts
 ```
 
 `tpl generate` is for CI and production builds only — not the primary day-to-day flow.
-
-## Gitignore
-
-`lib/tpl/` is generated from your `.tpl.md` source files, so you can gitignore it and regenerate at build time:
-
-```gitignore
-lib/tpl/
-```
-
-Or commit it — both are valid. Committing the generated files means diffs are visible in PRs and CI doesn't need to run `tpl generate` before type-checking.
 
 ---
 
@@ -303,6 +293,8 @@ File name → exported names:
 | `search-query.tpl.md`  | `searchQuery`  | `buildSearchQueryPrompt()`  |
 | `classify.tpl.md`      | `classify`     | `buildClassifyPrompt()`     |
 
+Generated filenames preserve the template stem exactly: `welcome-email.tpl.md` generates `welcome-email.tpl.gen.ts`, and `support_ticket.tpl.md` generates `support_ticket.tpl.gen.ts`.
+
 Names must be unique across the entire project. Collisions produce TypeScript errors in the generated file pointing at both conflicting sources.
 
 ---
@@ -314,8 +306,8 @@ Zero config needed. Override via the `"tpl"` key in `package.json`:
 ```json
 {
   "tpl": {
-    "output": "lib/tpl",
-    "pattern": "**/*.tpl.md",
+    "output": "lib/tpl.gen.ts",
+    "pattern": "**/*.tpl.{md,mdx,txt,html}",
     "ignore": ["src/vendor/**"]
   }
 }
@@ -323,8 +315,8 @@ Zero config needed. Override via the `"tpl"` key in `package.json`:
 
 | Key       | Default         | Description                                 |
 | --------- | --------------- | ------------------------------------------- |
-| `output`  | `"lib/tpl"` | Output directory (relative to project root) |
-| `pattern` | `"**/*.tpl.md"` | Glob pattern for finding prompt files       |
+| `output`  | `"lib/tpl.gen.ts"` | Manifest file path (relative to project root) |
+| `pattern` | `"**/*.tpl.{md,mdx,txt,html}"` | Glob pattern for finding prompt files       |
 | `ignore`  | `[]`            | Additional patterns to ignore               |
 
 Always ignored: `node_modules`, `dist`, `.git`.
@@ -334,11 +326,13 @@ Always ignored: `node_modules`, `dist`, `.git`.
 ## CLI reference
 
 ```bash
-tpl watch             # dev — regenerates on every .tpl.md change (~50 ms debounce)
+tpl watch             # dev — regenerates on every .tpl.* change (~50 ms debounce)
 tpl watch --cwd ./packages/backend
 
 tpl generate          # CI/CD — one-shot generation
-tpl generate --output src/generated/prompts   # override output dir
+tpl generate --output src/generated/prompts.gen.ts   # override manifest path
+
+tpl check             # CI/CD — fail if committed generated files are stale
 ```
 
 ---

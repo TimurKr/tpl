@@ -18,18 +18,18 @@ Both produce the same name — which is impossible to export unambiguously.
 
 ## How TPL handles it
 
-Generation **does not stop**. Instead, both templates are merged into a single collision file with duplicate declarations:
+Generation **does not stop**. Instead, each colliding template gets a generated collision file with duplicate declarations:
 
 ```typescript
-// lib/tpl/summary.ts — AUTO-GENERATED
+// src/auth/summary.tpl.gen.ts — AUTO-GENERATED
 // ⚠️  NAME COLLISION: multiple templates map to 'summary'
 // Rename one of the following files to resolve this:
 //   src/auth/summary.tpl.md
 //   src/search/summary.tpl.md
 // Until then, the duplicate declarations below will cause TypeScript errors.
 
-import TEMPLATE_1 from "../../src/auth/summary.tpl.md" with { type: "text" };
-import TEMPLATE_2 from "../../src/search/summary.tpl.md" with { type: "text" };
+import TEMPLATE_1 from "./summary.tpl.md" with { type: "text" };
+import TEMPLATE_2 from "../search/summary.tpl.md" with { type: "text" };
 
 // ↓ from src/auth/summary.tpl.md
 export function buildSummaryPrompt(): string { ... }

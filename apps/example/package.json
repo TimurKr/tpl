@@ -16,6 +16,6 @@
     "typescript": "^5.4.5"
   },
   "tpl": {
-    "output": "lib/tpl"
+    "output": "lib/tpl.gen.ts"
   }
 }

@@ -13,10 +13,14 @@ const CONDITIONAL_RE = /\{\{#if\s+(\w+)\}\}/g;
 /** Supported file extensions for .tpl.* files */
 export const SUPPORTED_EXTENSIONS = ["md", "mdx", "txt", "html"] as const;
 
-export function deriveFunctionName(filePath: string): string {
+export function deriveSourceStem(filePath: string): string {
   const base = basename(filePath);
   // Strip .tpl.<ext> for any supported extension
-  const stem = base.replace(/\.tpl\.[^.]+$/, "");
+  return base.replace(/\.tpl\.[^.]+$/, "");
+}
+
+export function deriveFunctionName(filePath: string): string {
+  const stem = deriveSourceStem(filePath);
   return stem.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
 }
 
@@ -101,6 +105,7 @@ export async function parseTemplate(
 
   const base: ParsedTemplate = {
     filePath,
+    sourceStem: deriveSourceStem(filePath),
     functionName: deriveFunctionName(filePath),
     variables,
     includes,

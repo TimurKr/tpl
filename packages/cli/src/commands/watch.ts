@@ -23,7 +23,7 @@ export async function runWatch(options: {
   const generateOptions = buildOptions(projectRoot, config);
 
   if (options.output) {
-    generateOptions.outputDir = path.resolve(cwd, options.output);
+    generateOptions.outputFile = path.resolve(cwd, options.output);
   }
 
   const runGen = async (changedFile?: string) => {
@@ -33,8 +33,8 @@ export async function runWatch(options: {
 
     try {
       const result = await generate(generateOptions);
-      const rel = path.relative(projectRoot, result.outputDir);
-      process.stdout.write(`✓ Generated ${result.count} prompt(s) → ${rel}/\n`);
+      const rel = path.relative(projectRoot, result.outputFile);
+      process.stdout.write(`✓ Generated ${result.count} prompt(s) → ${rel}\n`);
     } catch (err) {
       process.stderr.write(
         `Error: ${err instanceof Error ? err.message : String(err)}\n`
@@ -45,11 +45,11 @@ export async function runWatch(options: {
   // Initial generate on startup
   await runGen();
 
-  process.stdout.write(`👁  Watching for .tpl.md changes in ${projectRoot}\n`);
+  process.stdout.write(`👁  Watching for .tpl.* changes in ${projectRoot}\n`);
 
-  const watcher = chokidar.watch("**/*.tpl.md", {
+  const watcher = chokidar.watch(generateOptions.pattern ?? "**/*.tpl.{md,mdx,txt,html}", {
     cwd: projectRoot,
-    ignored: ["**/node_modules/**", "**/dist/**", "**/.git/**"],
+    ignored: ["**/node_modules/**", "**/dist/**", "**/.git/**", ...(generateOptions.ignore ?? [])],
     ignoreInitial: true,
     awaitWriteFinish: {
       stabilityThreshold: 50,

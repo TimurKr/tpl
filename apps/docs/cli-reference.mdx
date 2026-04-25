@@ -5,7 +5,7 @@ description: "tpl command reference."
 
 ## tpl watch
 
-Watch for `.tpl.md` changes and regenerate automatically (~50 ms debounce).
+Watch for `.tpl.*` changes and regenerate automatically (~50 ms debounce).
 
 ```bash
 tpl watch
@@ -13,14 +13,14 @@ tpl watch
 tpl w
 ```
 
-The primary workflow for development. Generates on startup, then re-generates within ~50 ms of any `.tpl.md` save.
+The primary workflow for development. Generates on startup, then re-generates within ~50 ms of any `.tpl.*` save.
 
 Options:
 
 | Option | Description |
 |--------|-------------|
 | `--cwd <dir>` | Working directory (defaults to `process.cwd()`) |
-| `--output <path>` | Override the output directory |
+| `--output <path>` | Override the manifest file path |
 
 Recommended for dev scripts:
 
@@ -34,7 +34,7 @@ Recommended for dev scripts:
 
 ## tpl generate
 
-Generate `lib/tpl/` from all `.tpl.md` files (one-shot).
+Generate sibling `*.tpl.gen.ts` files and the `lib/tpl.gen.ts` manifest from all `.tpl.*` files (one-shot).
 
 ```bash
 tpl generate
@@ -47,7 +47,7 @@ Options:
 | Option | Description |
 |--------|-------------|
 | `--cwd <dir>` | Working directory (defaults to `process.cwd()`) |
-| `--output <path>` | Override the output directory |
+| `--output <path>` | Override the manifest file path |
 
 Use in CI / build scripts before your TypeScript compiler:
 

@@ -36,8 +36,8 @@ export function readConfig(projectRoot: string): TplConfig {
 export function buildOptions(projectRoot: string, config: TplConfig): GenerateOptions {
   return {
     rootDir: projectRoot,
-    outputDir: path.join(projectRoot, config.output ?? "lib/tpl"),
-    pattern: config.pattern ?? "**/*.tpl.md",
+    outputFile: path.join(projectRoot, config.output ?? "lib/tpl.gen.ts"),
+    pattern: config.pattern ?? "**/*.tpl.{md,mdx,txt,html}",
     ignore: config.ignore ?? [],
   };
 }

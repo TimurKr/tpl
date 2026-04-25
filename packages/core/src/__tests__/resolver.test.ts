@@ -5,8 +5,10 @@ import type { ParsedTemplate } from "../types.js";
 function makeTemplate(
   overrides: Partial<ParsedTemplate> & { functionName: string; rawContent: string }
 ): ParsedTemplate {
+  const filePath = overrides.filePath ?? `/project/${overrides.functionName}.tpl.md`;
   return {
-    filePath: `/project/${overrides.functionName}.tpl.md`,
+    filePath,
+    sourceStem: filePath.split("/").pop()!.replace(/\.tpl\.[^.]+$/, ""),
     variables: [],
     includes: [],
     ...overrides,

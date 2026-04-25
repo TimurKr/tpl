@@ -7,9 +7,9 @@ description: "Integrate TPL into a Next.js project."
 
 1. **Install** the CLI package.
 2. **Scripts:** run `tpl watch` together with `next dev`, and run `tpl generate` before `next build` so Vercel and other CI get fresh output without the watcher.
-3. **Start** `npm run dev` and confirm the first generate succeeds (see the `lib/tpl/` line in the terminal).
-4. **Add** a `.tpl.md`, save, and confirm the output directory updates.
-5. **Import** from the generated `index` using the path style your bundler expects (for strict ESM / `moduleResolution: "bundler"`, a path alias like `@/lib/tpl` is common).
+3. **Start** `npm run dev` and confirm the first generate succeeds (see the `lib/tpl.gen.ts` line in the terminal).
+4. **Add** a `.tpl.md`, save, and confirm the sibling `*.tpl.gen.ts` file and manifest update.
+5. **Import** from the generated manifest using the path style your bundler expects (for strict ESM / `moduleResolution: "bundler"`, a path alias like `@/lib/tpl.gen` is common).
 
 ```bash
 npm install -D the-prompting-library
@@ -40,7 +40,7 @@ Respond in {{language|English}}. Keep responses concise.
 ## Use in a route handler
 
 ```typescript src/app/api/chat/route.ts
-import { prompts } from "@/lib/tpl";
+import { prompts } from "@/lib/tpl.gen";
 
 export async function POST(request: Request) {
   const { messages } = await request.json();
@@ -56,11 +56,11 @@ export async function POST(request: Request) {
 
 ## ESM and generated files
 
-TPL emits relative imports between generated files with a **`.js` extension** so output is valid for **Node16 / NodeNext** resolution. Your app code can use a path alias (below) or a relative `*.js` import to the generated folder, depending on `tsconfig` `moduleResolution`.
+TPL emits relative imports between generated files with a **`.js` extension** so output is valid for **Node16 / NodeNext** resolution. Your app code can use a path alias (below) or a relative `*.js` import to the generated manifest, depending on `tsconfig` `moduleResolution`.
 
 ## TypeScript path alias
 
-If you use `@/` path aliases, ensure `lib/` is reachable:
+If you use `@/` path aliases, ensure `lib/` and your source tree are reachable:
 
 ```json tsconfig.json
 {
@@ -72,10 +72,3 @@ If you use `@/` path aliases, ensure `lib/` is reachable:
 }
 ```
 
-## Gitignore (optional)
-
-```gitignore
-lib/tpl/
-```
-
-Or commit it — both are valid. Committing means PR diffs show exactly what changed in the generated output.

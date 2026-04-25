@@ -79,14 +79,14 @@ describe("buildOptions", () => {
   it("uses defaults when config is empty", () => {
     const opts = buildOptions("/project", {});
     expect(opts.rootDir).toBe("/project");
-    expect(opts.outputDir).toBe("/project/lib/tpl");
-    expect(opts.pattern).toBe("**/*.tpl.md");
+    expect(opts.outputFile).toBe("/project/lib/tpl.gen.ts");
+    expect(opts.pattern).toBe("**/*.tpl.{md,mdx,txt,html}");
     expect(opts.ignore).toEqual([]);
   });
 
   it("uses custom output from config", () => {
-    const opts = buildOptions("/project", { output: "generated/prompts" });
-    expect(opts.outputDir).toBe("/project/generated/prompts");
+    const opts = buildOptions("/project", { output: "generated/prompts.gen.ts" });
+    expect(opts.outputFile).toBe("/project/generated/prompts.gen.ts");
   });
 
   it("uses custom pattern from config", () => {

@@ -23,4 +23,4 @@ bun run --cwd apps/example generate
 - `src/features/search/search-query.tpl.md` — semantic search rewriter
 - `src/features/support/ticket-classifier.tpl.md` — support ticket classifier
 
-After `tpl watch` or `tpl generate`, generated TypeScript lives under `lib/tpl/` (see `"tpl".output` in `package.json`).
+After `tpl watch` or `tpl generate`, each template gets a sibling `*.tpl.gen.ts` file. The generated manifest lives at `lib/tpl.gen.ts` (see `"tpl".output` in `package.json`).

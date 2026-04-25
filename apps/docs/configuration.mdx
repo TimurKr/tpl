@@ -10,8 +10,8 @@ TPL is zero-config by default. Add a `"tpl"` key to your `package.json` to custo
 ```json package.json
 {
   "tpl": {
-    "output": "lib/tpl",
-    "pattern": "**/*.tpl.md",
+    "output": "lib/tpl.gen.ts",
+    "pattern": "**/*.tpl.{md,mdx,txt,html}",
     "ignore": ["src/vendor/**"]
   }
 }
@@ -19,8 +19,8 @@ TPL is zero-config by default. Add a `"tpl"` key to your `package.json` to custo
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `output` | `string` | `"lib/tpl"` | Relative path for the generated output directory |
-| `pattern` | `string` | `"**/*.tpl.md"` | Glob pattern for finding prompt files |
+| `output` | `string` | `"lib/tpl.gen.ts"` | Relative path for the generated manifest file |
+| `pattern` | `string` | `"**/*.tpl.{md,mdx,txt,html}"` | Glob pattern for finding prompt files |
 | `ignore` | `string[]` | `[]` | Additional glob patterns to ignore |
 
 ## Defaults
@@ -31,13 +31,3 @@ By default, TPL always ignores:
 - `**/.git/**`
 
 These cannot be overridden.
-
-## Gitignore
-
-The generated `lib/tpl/` directory can be gitignored and regenerated at build time:
-
-```gitignore
-lib/tpl/
-```
-
-Or commit it — both are valid. Committing the generated files means diffs are visible in PRs and CI doesn't need to run `tpl generate` before type-checking.

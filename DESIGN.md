@@ -59,30 +59,29 @@ Supported variable syntax:
 src/
   features/auth/
     welcome-email.tpl.md    ← co-located with the feature
+    welcome-email.tpl.gen.ts
   shared/
     base-persona.tpl.md     ← shared partial
+    base-persona.tpl.gen.ts
 
-lib/tpl/                ← generated output
-  index.ts                  ← prompts const + renderPrompt()
-  welcomeEmail.ts           ← one file per template
-  basePersona.ts
-  tpl.d.ts                  ← *.tpl.md ambient module declaration
+lib/
+  tpl.gen.ts                ← prompts const + renderPrompt()
+  tpl.gen.env.d.ts          ← *.tpl.* ambient module declarations
 ```
 
 ---
 
 ## Generated File Structure
 
-Each template produces its own `.ts` file. The source `.tpl.md` is **imported directly** — content is never duplicated into the TypeScript output:
+Each template produces a sibling `.tpl.gen.ts` file. The source `.tpl.md` is **imported directly** — content is never duplicated into the TypeScript output:
 
 ```typescript
-// lib/tpl/welcomeEmail.ts
-/// <reference path="./tpl.d.ts" />
+// src/features/auth/welcome-email.tpl.gen.ts
 
 import { renderTemplate } from "the-prompting-library/runtime";
-import TEMPLATE from "../../src/features/auth/welcome-email.tpl.md" with { type: "text" };
-import _basePersona from "../../src/shared/base-persona.tpl.md" with { type: "text" };
-import type { BasePersonaVariables } from "./basePersona";
+import TEMPLATE from "./welcome-email.tpl.md" with { type: "text" };
+import { buildBasePersonaPrompt } from "../../shared/base-persona.tpl.gen.js";
+import type { BasePersonaVariables } from "../../shared/base-persona.tpl.gen.js";
 
 /** Welcome email for new users */
 export interface WelcomeEmailVariables {
@@ -94,7 +93,7 @@ export interface WelcomeEmailVariables {
 }
 
 export function buildWelcomeEmailPrompt(vars: WelcomeEmailVariables): string {
-  return renderTemplate(TEMPLATE, vars, { basePersona: _basePersona });
+  return renderTemplate(TEMPLATE, vars, { basePersona: buildBasePersonaPrompt(vars.basePersona) });
 }
 ```
 
@@ -105,13 +104,13 @@ Every template always exports its interface (even if empty), so parent templates
 ## Consumer API
 
 ```typescript
-import { prompts, renderPrompt } from "./lib/tpl/index.ts";
+import { prompts, renderPrompt } from "./lib/tpl.gen.ts";
 
 // Recommended: short key via prompts object
 prompts.welcomeEmail({ userName: "Alice", productName: "Acme", basePersona: {} });
 
 // Tree-shaking: import a single build function
-import { buildWelcomeEmailPrompt } from "./lib/tpl/welcomeEmail.ts";
+import { buildWelcomeEmailPrompt } from "./src/features/auth/welcome-email.tpl.gen.ts";
 
 // Dynamic dispatch: template name from config or user input
 renderPrompt("welcomeEmail", { userName: "Alice", productName: "Acme", basePersona: {} });

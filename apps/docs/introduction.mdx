@@ -15,7 +15,7 @@ Their plan is {{planType}}. Keep it under 150 words.
 ```
 
 ```typescript
-import { prompts } from "./lib/tpl/index.js";
+import { prompts } from "./lib/tpl.gen.js";
 
 const prompt = prompts.welcomeEmail({
   userName: "Alice",
@@ -25,7 +25,7 @@ const prompt = prompts.welcomeEmail({
 // Wrong variable → compile error. Missing field → compile error.
 ```
 
-That's the core idea. Set up the watcher and dev script first, add a template, confirm `lib/tpl/` updates, then import — see [Quickstart](/quickstart).
+That's the core idea. Set up the watcher and dev script first, add a template, confirm the sibling `*.tpl.gen.ts` file and `lib/tpl.gen.ts` update, then import — see [Quickstart](/quickstart).
 
 ## Why not AgentMark or Prompty?
 
@@ -39,13 +39,13 @@ TPL is radically simpler:
 
 <CardGroup cols={2}>
   <Card title="Zero config" icon="bolt">
-    Drop `.tpl.md` files anywhere. No setup required. Output goes to `lib/tpl/` by default.
+    Drop `.tpl.md` files anywhere. No setup required. The manifest goes to `lib/tpl.gen.ts` by default.
   </Card>
   <Card title="Full type safety" icon="shield-check">
     Can't pass the wrong variable at compile time. IntelliSense shows every prompt and its parameters.
   </Card>
   <Card title="Co-located prompts" icon="folder">
-    Prompts live next to the code that uses them. Generated output collects in one place.
+    Prompts and their generated modules live together, with one generated manifest for app imports.
   </Card>
   <Card title="Rich syntax" icon="code">
     Typed variables, optional defaults, conditionals, and composable partials.
