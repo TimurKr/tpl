@@ -67,9 +67,13 @@ You are helping add TPL (The Prompting Library) to this TypeScript codebase.
 Goal:
 Move real prompt prose out of inline strings and into .tpl.md files. TPL will generate typed TypeScript prompt builder functions so prompt call sites get autocomplete and compile-time checks.
 
-Do not only "move strings around." TPL should become the main prompt-building mechanism. Use this as a chance to make prompt ownership clearer.
+Do not only "move strings around." TPL should become the main prompt-building mechanism. Use this as a chance to make prompt ownership clearer, but do it in two passes.
 
-Target architecture:
+Two-pass workflow:
+- Pass 1: adopt TPL with minimal behavioral and structural change. Extract prompt prose, wire generation, refactor call sites, and verify. Do not do a broad folder/module restructure yet.
+- Pass 2: after Pass 1 is working, analyze the repo and propose a bolder prompt architecture. Do not implement that restructure unless the user explicitly approves it.
+
+Target architecture for the proposal:
 - Markdown templates should own the model-facing prompt: headings, labels, descriptions, separators, fallback text, truncation notes, ordering notes, and conditional wording.
 - TypeScript should gather and normalize data, then pass that data into generated prompt functions.
 - TypeScript should not keep building prompt prose with string concatenation, arrays of hard-coded prompt lines, or helper functions whose main job is formatting model-facing text.
@@ -103,6 +107,8 @@ Implementation steps:
    - Detect whether generated files are committed in this repo.
    - Check TypeScript module settings so imports use the right style.
    - Prefer package-local TPL config/output in monorepos. Do not make unrelated packages depend on one package's generated template declarations unless the repo already shares source that way.
+   - Identify distinct prompt systems before editing. If the repo has multiple unrelated agents, products, apps, packages, or prompt families, do not assume the scope.
+   - If multiple unrelated prompt systems exist, ask the user which one to migrate first, or whether to migrate all. Use the environment's structured ask/user-question tool if available. If not available, ask in chat and wait.
 
 2. Install TPL as a dev dependency.
    - npm: `npm install -D the-prompting-library`
@@ -135,39 +141,11 @@ Implementation steps:
    - Do not extract tiny non-prompt UI labels or generic string utilities just because they contain text.
    - If TypeScript is still deciding how the prompt reads, move that wording into a template.
 
-6. Restructure prompt-heavy code by responsibility before extracting.
-   - "Feature" can mean product feature, domain, section, topic, responsibility, or prompt subsection. Use the code's natural concepts, not only UI/product features.
-   - If one file owns one mega prompt with many sections, treat each substantial section as its own responsibility and split it into small modules as part of the migration.
-   - Each responsibility folder should own both the TypeScript that gathers data and the `.tpl.md` files that describe that responsibility's prompt text.
-   - Do not create a central `src/prompts/` dumping ground for responsibility-owned prompts.
-   - A central prompt folder is only acceptable for genuinely shared templates such as base persona, safety rules, or output format.
-   - Good target shape:
-     src/
-       integrations/
-         github/
-           index.ts
-           github-integration.tpl.md
-         slack/
-           index.ts
-           slack-integration.tpl.md
-       memory/
-         user-context/
-           index.ts
-           user-context.tpl.md
-       workspace/
-         tree/
-           index.ts
-           workspace-tree.tpl.md
-   - Bad target shape:
-     src/
-       prompts/
-         github-integration.tpl.md
-         slack-integration.tpl.md
-         user-context.tpl.md
-         workspace-tree.tpl.md
-       giant-prompt-assembler.ts
-   - If the migration ends with one unchanged giant assembler plus a folder full of unrelated templates, the migration is incomplete. Refactor the assembler into responsibility modules and colocate the templates.
-   - When unsure, group by the thing the section is about: integration, tool, config, memory, workspace, document type, output contract, policy, persona, or response format.
+6. Place templates with minimal disruption for Pass 1.
+   - Prefer colocating each `.tpl.md` file next to the code that currently owns or uses it.
+   - If the repo has one large prompt assembler and no clear module structure yet, it is acceptable in Pass 1 to create a temporary prompt folder near that assembler.
+   - Keep this pass safe: do not split large TypeScript files into many modules unless that is required to adopt TPL correctly.
+   - If you use a temporary central prompt folder, call it out in the final report as a candidate for the Pass 2 restructure.
 
 7. Extract each chosen prompt.
    - Use kebab-case names: `welcome-email.tpl.md`, `classify-ticket.tpl.md`.
@@ -186,12 +164,33 @@ Implementation steps:
    - Include with `{{> basePersona}}`.
    - Partials without variables are rendered automatically.
    - Partials with variables become nested typed fields.
+   - Prefer `{{> partialName}}` whenever one prompt includes another prompt. Do not render one prompt in TypeScript just to pass its string into another prompt.
+   - Passing rendered prompt strings as variables is only acceptable for truly dynamic repeated collections, such as a list of N retrieved documents or N tool descriptions assembled at runtime.
 
 9. Create a top-level prompt template when assembling a large prompt.
    - If the original code had one big `systemPrompt` or prompt assembler, create a top-level `.tpl.md` file for that final prompt.
    - Put the final order, section headings, separators, and section inclusion rules in that top-level template.
-   - Use variables for dynamic data: `{{userContext}}`, `{{retrievedDocuments}}`, `{{availableActions}}`, `{{responseRules}}`.
-   - Use partials for static or reusable sections: `{{> basePersona}}`, `{{> safetyRules}}`, `{{> outputFormat}}`.
+   - Use partials for sections that are themselves templates: `{{> basePersona}}`, `{{> safetyRules}}`, `{{> outputFormat}}`.
+   - Use variables only for raw data that TypeScript computed or loaded: `{{userName}}`, `{{workspaceTree}}`, `{{retrievedDocumentSections}}`, `{{availableToolSections}}`.
+   - Bad top-level template:
+     {{agentRuntime}}
+     {{rules}}
+     {{workspace}}
+   - Good top-level template:
+     {{> agentRuntime}}
+     {{> rules}}
+     {{> workspace}}
+   - Bad TypeScript:
+     prompts.systemPrompt({
+       agentRuntime: prompts.agentRuntime({ workspaceDir }),
+       rules: prompts.rules(),
+       workspace: prompts.workspace({ tree }),
+     })
+   - Good TypeScript:
+     prompts.systemPrompt({
+       agentRuntime: { workspaceDir },
+       workspace: { tree },
+     })
    - The TypeScript assembler should become mostly data loading plus a final call to the generated top-level prompt function.
 
 10. Generate files.
@@ -241,24 +240,48 @@ Implementation steps:
 
    Keep a wrapper only when it preserves a public API, adds real logic, validates input, or is needed for compatibility. Otherwise update callers to use the generated prompt function directly.
 
-12. Verify.
+12. Verify Pass 1.
    - Run `tpl generate`.
    - Run the repo's typecheck.
    - Run the repo's tests if they exist.
    - Fix any generated TypeScript errors by correcting template variables, duplicate names, or broken includes.
    - Review the diff for under-extraction. If prompt wording, headings, descriptions, separators, truncation notes, or conditional prose are still authored in TypeScript, move them into templates.
+   - Review the diff for manual prompt composition. If TypeScript calls `prompts.foo()` only to pass that string into `prompts.bar({ foo })`, replace that variable slot with `{{> foo}}` and pass only `foo`'s data as nested variables.
    - Review the diff for over-extraction. If a `.tpl.md` file is only a non-prompt utility string, move it back to TypeScript.
-   - Review folder structure. If everything landed in one prompt folder, reorganize by feature where reasonable.
    - Search for wrapper-only functions and remove them unless they have a real reason to exist.
    - Check that large prompt assembly flows through a top-level generated prompt function where practical.
 
-13. Report what changed.
+13. Propose Pass 2 structure. Do not implement it yet.
+   - Analyze the prompt-building code after Pass 1.
+   - If one file still owns one mega prompt with many sections, propose splitting it into small responsibility modules.
+   - "Responsibility" can mean product feature, domain, section, topic, prompt subsection, or ownership area. Use the code's natural concepts, not only UI/product features.
+   - Group by the thing the section is about: integration, tool, config, memory, workspace, document type, output contract, policy, persona, response format, or another obvious domain.
+   - Each proposed responsibility folder should own both the TypeScript that gathers data and the `.tpl.md` files that describe that responsibility's prompt text.
+   - Avoid a permanent central `src/prompts/` dumping ground for responsibility-owned prompts. A central prompt folder is only for genuinely shared templates such as base persona, safety rules, or output format.
+   - Include a proposed file tree, a list of moves, and the call-site changes needed.
+   - Make the recommendation concrete enough that the user can reply "yes, do this" and the next agent can implement it.
+   - Example target shape:
+     src/
+       integrations/
+         github/
+           index.ts
+           github-integration.tpl.md
+       memory/
+         user-context/
+           index.ts
+           user-context.tpl.md
+       workspace/
+         tree/
+           index.ts
+           workspace-tree.tpl.md
+
+14. Report what changed.
    - List installed package/script changes.
    - List created `.tpl.md` files.
    - List refactored call sites.
-   - List any feature folders created or reorganized.
    - List wrapper-only functions removed.
    - Mention any prompts intentionally left inline and why.
+   - Include the Pass 2 restructure proposal, or say why no restructure is needed.
 ```
 
 </details>
