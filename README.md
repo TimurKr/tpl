@@ -135,30 +135,39 @@ Implementation steps:
    - Do not extract tiny non-prompt UI labels or generic string utilities just because they contain text.
    - If TypeScript is still deciding how the prompt reads, move that wording into a template.
 
-6. Restructure prompt-heavy code by feature before extracting.
-   - If one file owns many unrelated prompt sections, split it into small feature/domain modules as part of the migration.
-   - Each feature folder should own both the TypeScript that gathers data and the `.tpl.md` files that describe that feature's prompt text.
-   - Do not create a central `src/prompts/` dumping ground for feature-owned prompts.
+6. Restructure prompt-heavy code by responsibility before extracting.
+   - "Feature" can mean product feature, domain, section, topic, responsibility, or prompt subsection. Use the code's natural concepts, not only UI/product features.
+   - If one file owns one mega prompt with many sections, treat each substantial section as its own responsibility and split it into small modules as part of the migration.
+   - Each responsibility folder should own both the TypeScript that gathers data and the `.tpl.md` files that describe that responsibility's prompt text.
+   - Do not create a central `src/prompts/` dumping ground for responsibility-owned prompts.
    - A central prompt folder is only acceptable for genuinely shared templates such as base persona, safety rules, or output format.
    - Good target shape:
      src/
-       billing/
-         invoice-summary.ts
-         invoice-summary.tpl.md
-       search/
-         query-rewrite.ts
-         query-rewrite.tpl.md
-       support/
-         ticket-classifier.ts
-         ticket-classifier.tpl.md
+       integrations/
+         github/
+           index.ts
+           github-integration.tpl.md
+         slack/
+           index.ts
+           slack-integration.tpl.md
+       memory/
+         user-context/
+           index.ts
+           user-context.tpl.md
+       workspace/
+         tree/
+           index.ts
+           workspace-tree.tpl.md
    - Bad target shape:
      src/
        prompts/
-         invoice-summary.tpl.md
-         query-rewrite.tpl.md
-         ticket-classifier.tpl.md
+         github-integration.tpl.md
+         slack-integration.tpl.md
+         user-context.tpl.md
+         workspace-tree.tpl.md
        giant-prompt-assembler.ts
-   - If the migration ends with one unchanged giant assembler plus a folder full of unrelated templates, the migration is incomplete. Refactor the assembler into feature modules and colocate the templates.
+   - If the migration ends with one unchanged giant assembler plus a folder full of unrelated templates, the migration is incomplete. Refactor the assembler into responsibility modules and colocate the templates.
+   - When unsure, group by the thing the section is about: integration, tool, config, memory, workspace, document type, output contract, policy, persona, or response format.
 
 7. Extract each chosen prompt.
    - Use kebab-case names: `welcome-email.tpl.md`, `classify-ticket.tpl.md`.
