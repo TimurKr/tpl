@@ -8,7 +8,7 @@ const program = new Command();
 program
   .name("tpl")
   .description(
-    "The Prompting Library — generate typed functions from .tpl.md files"
+    "The Prompting Library — generate typed functions from .tpl.md files",
   )
   .version("0.1.0");
 

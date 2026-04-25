@@ -1,8 +1,12 @@
-import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import { writeFile, mkdir, rm } from "fs/promises";
-import { join } from "path";
-import { tmpdir } from "os";
-import { parseTemplate, deriveFunctionName, SUPPORTED_EXTENSIONS } from "../parser.js";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { mkdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import {
+  deriveFunctionName,
+  parseTemplate,
+  SUPPORTED_EXTENSIONS,
+} from "../parser.js";
 
 describe("deriveFunctionName", () => {
   it("converts single-segment kebab-case to camelCase", () => {
@@ -10,7 +14,9 @@ describe("deriveFunctionName", () => {
   });
 
   it("converts multi-segment kebab-case to camelCase", () => {
-    expect(deriveFunctionName("search-query-builder.tpl.md")).toBe("searchQueryBuilder");
+    expect(deriveFunctionName("search-query-builder.tpl.md")).toBe(
+      "searchQueryBuilder",
+    );
   });
 
   it("leaves single-word names unchanged", () => {
@@ -18,9 +24,9 @@ describe("deriveFunctionName", () => {
   });
 
   it("works with full paths", () => {
-    expect(deriveFunctionName("/project/src/features/auth/welcome-email.tpl.md")).toBe(
-      "welcomeEmail"
-    );
+    expect(
+      deriveFunctionName("/project/src/features/auth/welcome-email.tpl.md"),
+    ).toBe("welcomeEmail");
   });
 
   it("converts two-word kebab", () => {
@@ -36,7 +42,9 @@ describe("deriveFunctionName", () => {
   });
 
   it("strips .tpl.html extension", () => {
-    expect(deriveFunctionName("order-confirmation.tpl.html")).toBe("orderConfirmation");
+    expect(deriveFunctionName("order-confirmation.tpl.html")).toBe(
+      "orderConfirmation",
+    );
   });
 
   it("exports the supported extensions list", () => {
@@ -68,31 +76,51 @@ describe("parseTemplate", () => {
   it("extracts plain variables with string type", async () => {
     const path = await write(
       "greet.tpl.md",
-      "Hello {{userName}}, welcome to {{productName}}!"
+      "Hello {{userName}}, welcome to {{productName}}!",
     );
     const result = await parseTemplate(path, tmpDir);
     expect(result.variables).toHaveLength(2);
-    expect(result.variables[0]).toMatchObject({ name: "userName", type: "string", optional: false });
-    expect(result.variables[1]).toMatchObject({ name: "productName", type: "string", optional: false });
+    expect(result.variables[0]).toMatchObject({
+      name: "userName",
+      type: "string",
+      optional: false,
+    });
+    expect(result.variables[1]).toMatchObject({
+      name: "productName",
+      type: "string",
+      optional: false,
+    });
   });
 
   it("parses typed variable {{name:number}}", async () => {
     const path = await write("count.tpl.md", "Count: {{limit:number}} items");
     const result = await parseTemplate(path, tmpDir);
     expect(result.variables).toHaveLength(1);
-    expect(result.variables[0]).toMatchObject({ name: "limit", type: "number", optional: false });
+    expect(result.variables[0]).toMatchObject({
+      name: "limit",
+      type: "number",
+      optional: false,
+    });
   });
 
   it("parses typed variable {{name:boolean}}", async () => {
     const path = await write("flag.tpl.md", "Enabled: {{active:boolean}}");
     const result = await parseTemplate(path, tmpDir);
-    expect(result.variables[0]).toMatchObject({ name: "active", type: "boolean", optional: false });
+    expect(result.variables[0]).toMatchObject({
+      name: "active",
+      type: "boolean",
+      optional: false,
+    });
   });
 
   it("parses typed variable {{name:string[]}}", async () => {
     const path = await write("list.tpl.md", "Items: {{tags:string[]}}");
     const result = await parseTemplate(path, tmpDir);
-    expect(result.variables[0]).toMatchObject({ name: "tags", type: "string[]", optional: false });
+    expect(result.variables[0]).toMatchObject({
+      name: "tags",
+      type: "string[]",
+      optional: false,
+    });
   });
 
   it("parses optional variable with default {{name|default}}", async () => {
@@ -120,7 +148,7 @@ describe("parseTemplate", () => {
   it("variables in {{#if}} blocks are marked optional", async () => {
     const path = await write(
       "note.tpl.md",
-      "Hello!\n{{#if note}}\n**Note:** {{note}}\n{{/if}}"
+      "Hello!\n{{#if note}}\n**Note:** {{note}}\n{{/if}}",
     );
     const result = await parseTemplate(path, tmpDir);
     const noteVar = result.variables.find((v) => v.name === "note");
@@ -129,7 +157,10 @@ describe("parseTemplate", () => {
   });
 
   it("condition-only variable is still included", async () => {
-    const path = await write("beta.tpl.md", "{{#if betaUser}}\nBeta features enabled.\n{{/if}}");
+    const path = await write(
+      "beta.tpl.md",
+      "{{#if betaUser}}\nBeta features enabled.\n{{/if}}",
+    );
     const result = await parseTemplate(path, tmpDir);
     const v = result.variables.find((v) => v.name === "betaUser");
     expect(v).toBeDefined();
@@ -139,7 +170,7 @@ describe("parseTemplate", () => {
   it("deduplicates variables preserving order", async () => {
     const path = await write(
       "greet.tpl.md",
-      "{{name}} is {{name}} and {{other}} is {{name}}"
+      "{{name}} is {{name}} and {{other}} is {{name}}",
     );
     const result = await parseTemplate(path, tmpDir);
     expect(result.variables.map((v) => v.name)).toEqual(["name", "other"]);
@@ -154,7 +185,7 @@ describe("parseTemplate", () => {
   it("does not treat includes as variables", async () => {
     const path = await write(
       "with-include.tpl.md",
-      "{{> shared/base}}\nHello {{userName}}"
+      "{{> shared/base}}\nHello {{userName}}",
     );
     const result = await parseTemplate(path, tmpDir);
     expect(result.variables.map((v) => v.name)).toEqual(["userName"]);
@@ -164,7 +195,7 @@ describe("parseTemplate", () => {
   it("extracts includes correctly", async () => {
     const path = await write(
       "with-include.tpl.md",
-      "{{> shared/base-persona}}\n{{> footer}}\nHello {{name}}"
+      "{{> shared/base-persona}}\n{{> footer}}\nHello {{name}}",
     );
     const result = await parseTemplate(path, tmpDir);
     expect(result.includes).toEqual(["shared/base-persona", "footer"]);
@@ -179,7 +210,7 @@ describe("parseTemplate", () => {
   it("parses frontmatter description", async () => {
     const path = await write(
       "with-fm.tpl.md",
-      "---\ndescription: A test prompt\n---\nHello {{name}}"
+      "---\ndescription: A test prompt\n---\nHello {{name}}",
     );
     const result = await parseTemplate(path, tmpDir);
     expect(result.description).toBe("A test prompt");
@@ -194,7 +225,7 @@ describe("parseTemplate", () => {
   it("rawContent does not include frontmatter", async () => {
     const path = await write(
       "with-fm.tpl.md",
-      "---\ndescription: Test\n---\nActual content {{var}}"
+      "---\ndescription: Test\n---\nActual content {{var}}",
     );
     const result = await parseTemplate(path, tmpDir);
     expect(result.rawContent).not.toContain("description:");
@@ -216,6 +247,9 @@ describe("parseTemplate", () => {
   it("invalid type falls back to string", async () => {
     const path = await write("bad.tpl.md", "{{count:object}}");
     const result = await parseTemplate(path, tmpDir);
-    expect(result.variables[0]).toMatchObject({ name: "count", type: "string" });
+    expect(result.variables[0]).toMatchObject({
+      name: "count",
+      type: "string",
+    });
   });
 });

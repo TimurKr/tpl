@@ -1,6 +1,6 @@
-import path from "path";
-import { readFileSync, existsSync } from "fs";
-import type { TplConfig, GenerateOptions } from "@tpl/core";
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
+import type { GenerateOptions, TplConfig } from "@tpl/core";
 
 export function findProjectRoot(cwd: string): string {
   let dir = path.resolve(cwd);
@@ -13,7 +13,7 @@ export function findProjectRoot(cwd: string): string {
     const parent = path.dirname(dir);
     if (parent === dir) {
       throw new Error(
-        `Could not find a package.json starting from: ${cwd}\nMake sure you're running tpl inside a Node.js project.`
+        `Could not find a package.json starting from: ${cwd}\nMake sure you're running tpl inside a Node.js project.`,
       );
     }
 
@@ -33,7 +33,10 @@ export function readConfig(projectRoot: string): TplConfig {
   return {};
 }
 
-export function buildOptions(projectRoot: string, config: TplConfig): GenerateOptions {
+export function buildOptions(
+  projectRoot: string,
+  config: TplConfig,
+): GenerateOptions {
   return {
     rootDir: projectRoot,
     outputFile: path.join(projectRoot, config.output ?? "lib/tpl.gen.ts"),

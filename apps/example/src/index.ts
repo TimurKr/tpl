@@ -24,4 +24,6 @@
 console.log("Run `bun run dev` or `tpl watch` during development.");
 console.log("Run `tpl generate` in CI (see build script on the monorepo).");
 console.log("Generated prompt modules live beside their .tpl.* sources.");
-console.log("The generated manifest lives at lib/tpl.gen.ts (see package.json \"tpl\").");
+console.log(
+  'The generated manifest lives at lib/tpl.gen.ts (see package.json "tpl").',
+);

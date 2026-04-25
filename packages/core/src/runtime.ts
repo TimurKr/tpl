@@ -41,7 +41,7 @@ function refToFunctionName(ref: string): string {
 function resolvePartials(
   content: string,
   partials: Record<string, string>,
-  visited: Set<string>
+  visited: Set<string>,
 ): string {
   INCLUDE_RE.lastIndex = 0;
   return content.replace(INCLUDE_RE, (match, rawName: string) => {
@@ -88,7 +88,7 @@ export function flattenVars(vars: object): Record<string, unknown> {
 export function renderTemplate<T extends object>(
   content: string,
   vars: T,
-  partials?: Record<string, string>
+  partials?: Record<string, string>,
 ): string {
   const flat = flattenVars(vars);
 
@@ -109,10 +109,13 @@ export function renderTemplate<T extends object>(
       /\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g,
       (_, varName: string, block: string) => {
         const value = flat[varName];
-        return value !== undefined && value !== null && value !== false && value !== ""
+        return value !== undefined &&
+          value !== null &&
+          value !== false &&
+          value !== ""
           ? block
           : "";
-      }
+      },
     );
   }
 
@@ -123,10 +126,12 @@ export function renderTemplate<T extends object>(
       const expr = rawExpr.trim();
       const pipeIdx = expr.indexOf("|");
       const namePart = pipeIdx !== -1 ? expr.slice(0, pipeIdx).trim() : expr;
-      const defaultVal = pipeIdx !== -1 ? expr.slice(pipeIdx + 1).trim() : undefined;
+      const defaultVal =
+        pipeIdx !== -1 ? expr.slice(pipeIdx + 1).trim() : undefined;
 
       const colonIdx = namePart.indexOf(":");
-      const varName = colonIdx !== -1 ? namePart.slice(0, colonIdx).trim() : namePart;
+      const varName =
+        colonIdx !== -1 ? namePart.slice(0, colonIdx).trim() : namePart;
 
       const value = flat[varName];
       if (value !== undefined && value !== null) {
@@ -136,7 +141,7 @@ export function renderTemplate<T extends object>(
         return defaultVal;
       }
       return match; // leave unreplaced
-    }
+    },
   );
 
   return result.replace(/\n{3,}/g, "\n\n").trim();

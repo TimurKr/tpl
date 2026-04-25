@@ -1,5 +1,5 @@
-import type { ParsedTemplate } from "./types.js";
 import { INCLUDE_RE } from "./patterns.js";
+import type { ParsedTemplate } from "./types.js";
 
 /**
  * Convert an include reference (which may be a path stem like "shared/base-persona"
@@ -17,7 +17,7 @@ function resolveContent(
   content: string,
   allTemplates: Map<string, ParsedTemplate>,
   visited: Set<string>,
-  originName: string
+  originName: string,
 ): string {
   return content.replace(INCLUDE_RE, (_, rawName: string) => {
     const includeName = rawName.trim();
@@ -26,21 +26,26 @@ function resolveContent(
     if (!resolved) {
       throw new Error(
         `Include '{{> ${includeName}}}' in '${originName}' could not be resolved. ` +
-          `No template found for '${includeName}'.`
+          `No template found for '${includeName}'.`,
       );
     }
 
     if (visited.has(resolved.functionName)) {
       throw new Error(
         `Circular include detected: '${includeName}' is already in the resolution chain ` +
-          `[${[...visited].join(" → ")} → ${resolved.functionName}]`
+          `[${[...visited].join(" → ")} → ${resolved.functionName}]`,
       );
     }
 
     const nextVisited = new Set(visited);
     nextVisited.add(resolved.functionName);
 
-    return resolveContent(resolved.rawContent, allTemplates, nextVisited, resolved.filePath).trim();
+    return resolveContent(
+      resolved.rawContent,
+      allTemplates,
+      nextVisited,
+      resolved.filePath,
+    ).trim();
   });
 }
 
@@ -59,7 +64,7 @@ function resolveContent(
  */
 export function findTemplate(
   allTemplates: Map<string, ParsedTemplate>,
-  includeName: string
+  includeName: string,
 ): ParsedTemplate | undefined {
   // 1. Path-suffix match (full or partial path, backward-compatible)
   for (const template of allTemplates.values()) {
@@ -88,10 +93,15 @@ export function findTemplate(
 
 export function resolveIncludes(
   template: ParsedTemplate,
-  allTemplates: Map<string, ParsedTemplate>
+  allTemplates: Map<string, ParsedTemplate>,
 ): string {
   const visited = new Set<string>([template.functionName]);
-  return resolveContent(template.rawContent, allTemplates, visited, template.filePath);
+  return resolveContent(
+    template.rawContent,
+    allTemplates,
+    visited,
+    template.filePath,
+  );
 }
 
 /**
@@ -103,14 +113,15 @@ export function resolveIncludes(
 export function hasEffectiveVariables(
   template: ParsedTemplate,
   allTemplates: Map<string, ParsedTemplate>,
-  visited: Set<string> = new Set()
+  visited: Set<string> = new Set(),
 ): boolean {
   if (visited.has(template.functionName)) return false;
   if (template.variables.length > 0) return true;
   const next = new Set([...visited, template.functionName]);
   for (const includeName of template.includes) {
     const partial = findTemplate(allTemplates, includeName);
-    if (partial && hasEffectiveVariables(partial, allTemplates, next)) return true;
+    if (partial && hasEffectiveVariables(partial, allTemplates, next))
+      return true;
   }
   return false;
 }
@@ -122,7 +133,7 @@ export function hasEffectiveVariables(
  */
 export function collectPartials(
   template: ParsedTemplate,
-  allTemplates: Map<string, ParsedTemplate>
+  allTemplates: Map<string, ParsedTemplate>,
 ): ParsedTemplate[] {
   const collected: ParsedTemplate[] = [];
   const seen = new Set<string>();
@@ -133,13 +144,13 @@ export function collectPartials(
       if (!partial) {
         throw new Error(
           `Include '{{> ${includeName}}}' in '${t.filePath}' could not be resolved. ` +
-            `No template found for '${includeName}'.`
+            `No template found for '${includeName}'.`,
         );
       }
       if (visited.has(partial.functionName)) {
         throw new Error(
           `Circular include detected: '${includeName}' is already in the resolution chain ` +
-            `[${[...visited].join(" → ")} → ${partial.functionName}]`
+            `[${[...visited].join(" → ")} → ${partial.functionName}]`,
         );
       }
       if (!seen.has(partial.functionName)) {

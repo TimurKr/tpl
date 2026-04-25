@@ -1,5 +1,5 @@
-import { describe, it, expect } from "bun:test";
-import { renderTemplate, flattenVars } from "../runtime.js";
+import { describe, expect, it } from "bun:test";
+import { flattenVars, renderTemplate } from "../runtime.js";
 
 describe("flattenVars", () => {
   it("returns flat vars unchanged", () => {
@@ -8,34 +8,43 @@ describe("flattenVars", () => {
 
   it("flattens one level of nested object (partial vars)", () => {
     expect(
-      flattenVars({ userName: "Alice", footer: { email: "hi@example.com", phone: "123" } })
+      flattenVars({
+        userName: "Alice",
+        footer: { email: "hi@example.com", phone: "123" },
+      }),
     ).toEqual({ userName: "Alice", email: "hi@example.com", phone: "123" });
   });
 
   it("recursively flattens nested partials", () => {
-    expect(
-      flattenVars({ a: "1", b: { c: "2", d: { e: "3" } } })
-    ).toEqual({ a: "1", c: "2", e: "3" });
+    expect(flattenVars({ a: "1", b: { c: "2", d: { e: "3" } } })).toEqual({
+      a: "1",
+      c: "2",
+      e: "3",
+    });
   });
 
   it("keeps arrays as-is", () => {
     const result = flattenVars({ tags: ["a", "b"] });
-    expect(result["tags"]).toEqual(["a", "b"]);
+    expect(result.tags).toEqual(["a", "b"]);
   });
 
   it("ignores null values", () => {
     const result = flattenVars({ a: null as unknown as string, b: "ok" });
-    expect(result["b"]).toBe("ok");
+    expect(result.b).toBe("ok");
   });
 });
 
 describe("renderTemplate", () => {
   it("substitutes a plain variable", () => {
-    expect(renderTemplate("Hello {{name}}!", { name: "Alice" })).toBe("Hello Alice!");
+    expect(renderTemplate("Hello {{name}}!", { name: "Alice" })).toBe(
+      "Hello Alice!",
+    );
   });
 
   it("substitutes multiple variables", () => {
-    expect(renderTemplate("{{a}} and {{b}}", { a: "foo", b: "bar" })).toBe("foo and bar");
+    expect(renderTemplate("{{a}} and {{b}}", { a: "foo", b: "bar" })).toBe(
+      "foo and bar",
+    );
   });
 
   it("uses default value when variable is missing", () => {
@@ -43,11 +52,15 @@ describe("renderTemplate", () => {
   });
 
   it("uses actual value when variable is present (ignores default)", () => {
-    expect(renderTemplate("Hello {{name|World}}!", { name: "Alice" })).toBe("Hello Alice!");
+    expect(renderTemplate("Hello {{name|World}}!", { name: "Alice" })).toBe(
+      "Hello Alice!",
+    );
   });
 
   it("renders typed variable {{name:number}} by ignoring the type annotation", () => {
-    expect(renderTemplate("Count: {{limit:number}}", { limit: 42 })).toBe("Count: 42");
+    expect(renderTemplate("Count: {{limit:number}}", { limit: 42 })).toBe(
+      "Count: 42",
+    );
   });
 
   it("renders typed optional {{name:number|0}} with default", () => {
@@ -55,21 +68,27 @@ describe("renderTemplate", () => {
   });
 
   it("renders conditional block when variable is truthy", () => {
-    expect(renderTemplate("A{{#if note}}\nNote: {{note}}{{/if}}\nB", { note: "hi" })).toBe(
-      "A\nNote: hi\nB"
-    );
+    expect(
+      renderTemplate("A{{#if note}}\nNote: {{note}}{{/if}}\nB", { note: "hi" }),
+    ).toBe("A\nNote: hi\nB");
   });
 
   it("omits conditional block when variable is falsy", () => {
-    expect(renderTemplate("A\n{{#if note}}\nNote: {{note}}\n{{/if}}\nB", {})).toBe("A\n\nB");
+    expect(
+      renderTemplate("A\n{{#if note}}\nNote: {{note}}\n{{/if}}\nB", {}),
+    ).toBe("A\n\nB");
   });
 
   it("omits conditional block when variable is false", () => {
-    expect(renderTemplate("{{#if active}}enabled{{/if}}", { active: false })).toBe("");
+    expect(
+      renderTemplate("{{#if active}}enabled{{/if}}", { active: false }),
+    ).toBe("");
   });
 
   it("omits conditional block when variable is empty string", () => {
-    expect(renderTemplate("{{#if active}}enabled{{/if}}", { active: "" })).toBe("");
+    expect(renderTemplate("{{#if active}}enabled{{/if}}", { active: "" })).toBe(
+      "",
+    );
   });
 
   it("renders nested partials by flattening vars", () => {
@@ -81,9 +100,9 @@ describe("renderTemplate", () => {
   });
 
   it("renders string[] by joining with comma", () => {
-    expect(renderTemplate("Tags: {{tags:string[]}}", { tags: ["a", "b", "c"] })).toBe(
-      "Tags: a, b, c"
-    );
+    expect(
+      renderTemplate("Tags: {{tags:string[]}}", { tags: ["a", "b", "c"] }),
+    ).toBe("Tags: a, b, c");
   });
 
   it("leaves unreplaced {{var}} when no value and no default", () => {

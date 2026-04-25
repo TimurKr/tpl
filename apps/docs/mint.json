@@ -20,27 +20,15 @@
   "navigation": [
     {
       "group": "Getting Started",
-      "pages": [
-        "introduction",
-        "quickstart",
-        "how-it-works"
-      ]
+      "pages": ["introduction", "quickstart", "how-it-works"]
     },
     {
       "group": "Reference",
-      "pages": [
-        "file-format",
-        "cli-reference",
-        "configuration",
-        "includes"
-      ]
+      "pages": ["file-format", "cli-reference", "configuration", "includes"]
     },
     {
       "group": "Guides",
-      "pages": [
-        "guides/nextjs",
-        "guides/collision-detection"
-      ]
+      "pages": ["guides/nextjs", "guides/collision-detection"]
     }
   ],
   "footerSocials": {

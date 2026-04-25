@@ -1,7 +1,7 @@
-import path from "path";
-import chokidar from "chokidar";
+import path from "node:path";
 import { generate } from "@tpl/core";
-import { findProjectRoot, readConfig, buildOptions } from "../config.js";
+import chokidar from "chokidar";
+import { buildOptions, findProjectRoot, readConfig } from "../config.js";
 
 export async function runWatch(options: {
   cwd?: string;
@@ -14,7 +14,7 @@ export async function runWatch(options: {
     projectRoot = findProjectRoot(cwd);
   } catch (err) {
     process.stderr.write(
-      `Error: ${err instanceof Error ? err.message : String(err)}\n`
+      `Error: ${err instanceof Error ? err.message : String(err)}\n`,
     );
     process.exit(1);
   }
@@ -37,7 +37,7 @@ export async function runWatch(options: {
       process.stdout.write(`✓ Generated ${result.count} prompt(s) → ${rel}\n`);
     } catch (err) {
       process.stderr.write(
-        `Error: ${err instanceof Error ? err.message : String(err)}\n`
+        `Error: ${err instanceof Error ? err.message : String(err)}\n`,
       );
     }
   };
@@ -47,15 +47,23 @@ export async function runWatch(options: {
 
   process.stdout.write(`👁  Watching for .tpl.* changes in ${projectRoot}\n`);
 
-  const watcher = chokidar.watch(generateOptions.pattern ?? "**/*.tpl.{md,mdx,txt,html}", {
-    cwd: projectRoot,
-    ignored: ["**/node_modules/**", "**/dist/**", "**/.git/**", ...(generateOptions.ignore ?? [])],
-    ignoreInitial: true,
-    awaitWriteFinish: {
-      stabilityThreshold: 50,
-      pollInterval: 10,
+  const watcher = chokidar.watch(
+    generateOptions.pattern ?? "**/*.tpl.{md,mdx,txt,html}",
+    {
+      cwd: projectRoot,
+      ignored: [
+        "**/node_modules/**",
+        "**/dist/**",
+        "**/.git/**",
+        ...(generateOptions.ignore ?? []),
+      ],
+      ignoreInitial: true,
+      awaitWriteFinish: {
+        stabilityThreshold: 50,
+        pollInterval: 10,
+      },
     },
-  });
+  );
 
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
   let pendingFile: string | null = null;

@@ -1,8 +1,8 @@
-import { readFile } from "fs/promises";
-import { basename } from "path";
+import { readFile } from "node:fs/promises";
+import { basename } from "node:path";
 import matter from "gray-matter";
-import type { ParsedTemplate, VariableDef, VariableType } from "./types.js";
 import { INCLUDE_RE } from "./patterns.js";
+import type { ParsedTemplate, VariableDef, VariableType } from "./types.js";
 
 // Matches {{var}}, {{var:type}}, {{var|default}}, {{var:type|default}}
 // Does NOT match {{> include}}, {{#if}}, {{/if}}
@@ -40,9 +40,15 @@ function parseVarExpr(expr: string): VariableDef {
 
   const colonIdx = namePart.indexOf(":");
   const name = colonIdx !== -1 ? namePart.slice(0, colonIdx).trim() : namePart;
-  const typeStr = colonIdx !== -1 ? namePart.slice(colonIdx + 1).trim() : "string";
+  const typeStr =
+    colonIdx !== -1 ? namePart.slice(colonIdx + 1).trim() : "string";
 
-  const VALID_TYPES: VariableType[] = ["string", "number", "boolean", "string[]"];
+  const VALID_TYPES: VariableType[] = [
+    "string",
+    "number",
+    "boolean",
+    "string[]",
+  ];
   const type: VariableType = VALID_TYPES.includes(typeStr as VariableType)
     ? (typeStr as VariableType)
     : "string";
@@ -54,7 +60,7 @@ function parseVarExpr(expr: string): VariableDef {
 
 export async function parseTemplate(
   filePath: string,
-  _rootDir: string
+  _rootDir: string,
 ): Promise<ParsedTemplate> {
   const raw = await readFile(filePath, "utf-8");
   const { data, content } = matter(raw);
@@ -101,7 +107,7 @@ export async function parseTemplate(
   }
 
   const description =
-    typeof data["description"] === "string" ? data["description"] : undefined;
+    typeof data.description === "string" ? data.description : undefined;
 
   const base: ParsedTemplate = {
     filePath,

@@ -1,14 +1,22 @@
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { resolveIncludes } from "../resolver.js";
 import type { ParsedTemplate } from "../types.js";
 
 function makeTemplate(
-  overrides: Partial<ParsedTemplate> & { functionName: string; rawContent: string }
+  overrides: Partial<ParsedTemplate> & {
+    functionName: string;
+    rawContent: string;
+  },
 ): ParsedTemplate {
-  const filePath = overrides.filePath ?? `/project/${overrides.functionName}.tpl.md`;
+  const filePath =
+    overrides.filePath ?? `/project/${overrides.functionName}.tpl.md`;
+  const base = filePath.split("/").pop();
+  if (!base) {
+    throw new Error(`Invalid template path: ${filePath}`);
+  }
   return {
     filePath,
-    sourceStem: filePath.split("/").pop()!.replace(/\.tpl\.[^.]+$/, ""),
+    sourceStem: base.replace(/\.tpl\.[^.]+$/, ""),
     variables: [],
     includes: [],
     ...overrides,
@@ -41,7 +49,9 @@ describe("resolveIncludes", () => {
       ["main", main],
     ]);
     const result = resolveIncludes(main, map);
-    expect(result).toBe("You are a helpful assistant.\nPlease help {{userName}}.");
+    expect(result).toBe(
+      "You are a helpful assistant.\nPlease help {{userName}}.",
+    );
   });
 
   it("resolves nested includes", () => {

@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import { writeFile, mkdir, rm, readFile, readdir } from "fs/promises";
-import { join } from "path";
-import { tmpdir } from "os";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { check, collect, generate } from "../collector.js";
 
 describe("collector", () => {
@@ -16,7 +16,10 @@ describe("collector", () => {
     await rm(rootDir, { recursive: true, force: true });
   });
 
-  async function writeTemplate(relPath: string, content: string): Promise<void> {
+  async function writeTemplate(
+    relPath: string,
+    content: string,
+  ): Promise<void> {
     const full = join(rootDir, relPath);
     const dir = full.replace(/\/[^/]+$/, "");
     await mkdir(dir, { recursive: true });
@@ -49,7 +52,7 @@ describe("collector", () => {
 
       const templates = await collect({ rootDir, outputFile: outputFile() });
       expect(templates).toHaveLength(1);
-      expect(templates[0]!.functionName).toBe("real");
+      expect(templates[0]?.functionName).toBe("real");
     });
 
     it("ignores dist directory", async () => {
@@ -70,7 +73,7 @@ describe("collector", () => {
         ignore: ["**/test-fixtures/**"],
       });
       expect(templates).toHaveLength(1);
-      expect(templates[0]!.functionName).toBe("real");
+      expect(templates[0]?.functionName).toBe("real");
     });
 
     it("finds .tpl.mdx, .tpl.txt, and .tpl.html files", async () => {
@@ -87,7 +90,7 @@ describe("collector", () => {
     it("parses templates correctly with VariableDef", async () => {
       await writeTemplate(
         "src/welcome.tpl.md",
-        "---\ndescription: Welcome message\n---\nHello {{userName}}!"
+        "---\ndescription: Welcome message\n---\nHello {{userName}}!",
       );
 
       const templates = await collect({ rootDir, outputFile: outputFile() });
@@ -96,7 +99,11 @@ describe("collector", () => {
       expect(t.functionName).toBe("welcome");
       expect(t.description).toBe("Welcome message");
       expect(t.variables).toHaveLength(1);
-      expect(t.variables[0]).toMatchObject({ name: "userName", type: "string", optional: false });
+      expect(t.variables[0]).toMatchObject({
+        name: "userName",
+        type: "string",
+        optional: false,
+      });
     });
   });
 
@@ -119,7 +126,10 @@ describe("collector", () => {
 
       await generate({ rootDir, outputFile: out });
 
-      const content = await readFile(join(rootDir, "src/greet.tpl.gen.ts"), "utf-8");
+      const content = await readFile(
+        join(rootDir, "src/greet.tpl.gen.ts"),
+        "utf-8",
+      );
       expect(content).toContain("export function buildGreetPrompt");
       expect(content).toContain("AUTO-GENERATED");
       expect(content).toContain("renderTemplate");
@@ -137,7 +147,10 @@ describe("collector", () => {
       const files = await readdir(join(rootDir, "lib"));
       expect(files).toContain("tpl.gen.env.d.ts");
 
-      const dts = await readFile(join(rootDir, "lib/tpl.gen.env.d.ts"), "utf-8");
+      const dts = await readFile(
+        join(rootDir, "lib/tpl.gen.env.d.ts"),
+        "utf-8",
+      );
       expect(dts).toContain(`declare module "*.tpl.md"`);
     });
 
@@ -163,7 +176,9 @@ describe("collector", () => {
       await generate({ rootDir, outputFile: out });
 
       const index = await readFile(out, "utf-8");
-      expect(index).toContain("export function renderPrompt<Name extends PromptName>(");
+      expect(index).toContain(
+        "export function renderPrompt<Name extends PromptName>(",
+      );
     });
 
     it("creates manifest directory if it does not exist", async () => {
@@ -198,7 +213,10 @@ describe("collector", () => {
       const files = await readdir(join(rootDir, "src"));
       expect(files).toContain("greet.tpl.gen.ts");
 
-      const content = await readFile(join(rootDir, "src/greet.tpl.gen.ts"), "utf-8");
+      const content = await readFile(
+        join(rootDir, "src/greet.tpl.gen.ts"),
+        "utf-8",
+      );
       expect(content).toContain("NAME COLLISION");
 
       // Only one unique name, so count is 1 (deduplicated)
@@ -227,13 +245,16 @@ describe("collector", () => {
     it("generates valid TypeScript with correct exports", async () => {
       await writeTemplate(
         "src/welcome-email.tpl.md",
-        "---\ndescription: Welcome email\n---\nHello {{userName}} from {{product}}!"
+        "---\ndescription: Welcome email\n---\nHello {{userName}} from {{product}}!",
       );
 
       const out = outputFile();
       await generate({ rootDir, outputFile: out });
 
-      const promptFile = await readFile(join(rootDir, "src/welcome-email.tpl.gen.ts"), "utf-8");
+      const promptFile = await readFile(
+        join(rootDir, "src/welcome-email.tpl.gen.ts"),
+        "utf-8",
+      );
       expect(promptFile).toContain("export interface WelcomeEmailVariables");
       expect(promptFile).toContain("export function buildWelcomeEmailPrompt");
       expect(promptFile).toContain("renderTemplate(TEMPLATE, vars)");
@@ -268,7 +289,9 @@ describe("collector", () => {
 
       expect(result.ok).toBe(false);
       expect(result.issues.map((issue) => issue.kind)).toContain("missing");
-      expect(result.issues.map((issue) => issue.filePath)).toContain(join(rootDir, "src/greet.tpl.gen.ts"));
+      expect(result.issues.map((issue) => issue.filePath)).toContain(
+        join(rootDir, "src/greet.tpl.gen.ts"),
+      );
       expect(result.issues.map((issue) => issue.filePath)).toContain(out);
     });
 
@@ -276,7 +299,11 @@ describe("collector", () => {
       await writeTemplate("src/greet.tpl.md", "Hello {{name}}");
       const out = outputFile();
       await generate({ rootDir, outputFile: out });
-      await writeFile(join(rootDir, "src/greet.tpl.gen.ts"), "// edited\n", "utf-8");
+      await writeFile(
+        join(rootDir, "src/greet.tpl.gen.ts"),
+        "// edited\n",
+        "utf-8",
+      );
 
       const result = await check({ rootDir, outputFile: out });
 

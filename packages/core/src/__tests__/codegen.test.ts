@@ -1,6 +1,6 @@
-import { describe, it, expect } from "bun:test";
+import { describe, expect, it } from "bun:test";
 import { generateFiles } from "../codegen.js";
-import type { ParsedTemplate, VariableDef, GenerateOptions } from "../types.js";
+import type { GenerateOptions, ParsedTemplate, VariableDef } from "../types.js";
 
 const opts: GenerateOptions = {
   rootDir: "/project",
@@ -8,7 +8,11 @@ const opts: GenerateOptions = {
 };
 
 function sourceStem(filePath: string): string {
-  return filePath.split("/").pop()!.replace(/\.tpl\.[^.]+$/, "");
+  const base = filePath.split("/").pop();
+  if (!base) {
+    throw new Error(`Invalid template path: ${filePath}`);
+  }
+  return base.replace(/\.tpl\.[^.]+$/, "");
 }
 
 function generatedPath(template: ParsedTemplate): string {
@@ -17,15 +21,16 @@ function generatedPath(template: ParsedTemplate): string {
 
 function varDef(
   name: string,
-  overrides: Partial<VariableDef> = {}
+  overrides: Partial<VariableDef> = {},
 ): VariableDef {
   return { name, type: "string", optional: false, ...overrides };
 }
 
 function makeTemplate(
-  overrides: Partial<ParsedTemplate> & { functionName: string }
+  overrides: Partial<ParsedTemplate> & { functionName: string },
 ): ParsedTemplate {
-  const filePath = overrides.filePath ?? `/project/${overrides.functionName}.tpl.md`;
+  const filePath =
+    overrides.filePath ?? `/project/${overrides.functionName}.tpl.md`;
   return {
     filePath,
     sourceStem: sourceStem(filePath),
@@ -83,11 +88,16 @@ describe("generateFiles", () => {
     const t = makeTemplate({ functionName: "greeting", rawContent: "Hello" });
     const files = generateFiles([t], makeMap([t]), opts);
     const prompt = files.get(generatedPath(t))!;
-    expect(prompt).toContain(`import { renderTemplate } from "the-prompting-library/runtime"`);
+    expect(prompt).toContain(
+      `import { renderTemplate } from "the-prompting-library/runtime"`,
+    );
   });
 
   it("function is named build<PascalName>Prompt", () => {
-    const t = makeTemplate({ functionName: "welcomeEmail", rawContent: "Hello" });
+    const t = makeTemplate({
+      functionName: "welcomeEmail",
+      rawContent: "Hello",
+    });
     const files = generateFiles([t], makeMap([t]), opts);
     const prompt = files.get(generatedPath(t))!;
     expect(prompt).toContain("export function buildWelcomeEmailPrompt(");
@@ -172,7 +182,9 @@ describe("generateFiles", () => {
     const prompt = files.get(generatedPath(t))!;
     expect(prompt).toContain("export interface StaticPromptVariables {}");
     // Function still takes no params when there are no vars — empty interface is for the type only
-    expect(prompt).toContain("export function buildStaticPromptPrompt(): string {");
+    expect(prompt).toContain(
+      "export function buildStaticPromptPrompt(): string {",
+    );
     expect(prompt).not.toContain("(vars:");
   });
 
@@ -185,7 +197,9 @@ describe("generateFiles", () => {
     });
     const files = generateFiles([t], makeMap([t]), opts);
     const prompt = files.get(generatedPath(t))!;
-    expect(prompt).toContain(`import TEMPLATE from "./greet.tpl.md" with { type: "text" }`);
+    expect(prompt).toContain(
+      `import TEMPLATE from "./greet.tpl.md" with { type: "text" }`,
+    );
     expect(prompt).not.toContain("const TEMPLATE");
   });
 
@@ -221,8 +235,14 @@ describe("generateFiles", () => {
   });
 
   it("name collision: generates a single file with both templates + collision warning (no throw)", () => {
-    const a = makeTemplate({ functionName: "greet", filePath: "/project/src/a/greet.tpl.md" });
-    const b = makeTemplate({ functionName: "greet", filePath: "/project/src/b/greet.tpl.md" });
+    const a = makeTemplate({
+      functionName: "greet",
+      filePath: "/project/src/a/greet.tpl.md",
+    });
+    const b = makeTemplate({
+      functionName: "greet",
+      filePath: "/project/src/b/greet.tpl.md",
+    });
     // Must NOT throw — generation continues
     const files = generateFiles([a, b], makeMap([a, b]), opts);
     const file = files.get(generatedPath(a))!;
@@ -235,12 +255,21 @@ describe("generateFiles", () => {
   });
 
   it("name collision: only one entry per name in the manifest", () => {
-    const a = makeTemplate({ functionName: "greet", filePath: "/project/src/a/greet.tpl.md" });
-    const b = makeTemplate({ functionName: "greet", filePath: "/project/src/b/greet.tpl.md" });
+    const a = makeTemplate({
+      functionName: "greet",
+      filePath: "/project/src/a/greet.tpl.md",
+    });
+    const b = makeTemplate({
+      functionName: "greet",
+      filePath: "/project/src/b/greet.tpl.md",
+    });
     const files = generateFiles([a, b], makeMap([a, b]), opts);
     const index = files.get(opts.outputFile)!;
     // The manifest points at the first colliding generated module once.
-    expect(index.match(/export \* from "\.\.\/src\/a\/greet\.tpl\.gen\.js"/g)?.length).toBe(1);
+    expect(
+      index.match(/export \* from "\.\.\/src\/a\/greet\.tpl\.gen\.js"/g)
+        ?.length,
+    ).toBe(1);
   });
 
   it("circular include: generates file with @ts-expect-error marker (no throw)", () => {
@@ -275,8 +304,12 @@ describe("generateFiles", () => {
     const b = makeTemplate({ functionName: "bar", rawContent: "Bar" });
     const files = generateFiles([a, b], makeMap([a, b]), opts);
     const index = files.get(opts.outputFile)!;
-    expect(index).toContain(`import { buildFooPrompt } from "../foo.tpl.gen.js"`);
-    expect(index).toContain(`import { buildBarPrompt } from "../bar.tpl.gen.js"`);
+    expect(index).toContain(
+      `import { buildFooPrompt } from "../foo.tpl.gen.js"`,
+    );
+    expect(index).toContain(
+      `import { buildBarPrompt } from "../bar.tpl.gen.js"`,
+    );
     expect(index).toContain("export const prompts = {");
     expect(index).toContain("  foo: buildFooPrompt,");
     expect(index).toContain("  bar: buildBarPrompt,");
@@ -287,8 +320,12 @@ describe("generateFiles", () => {
     const files = generateFiles([t], makeMap([t]), opts);
     const index = files.get(opts.outputFile)!;
     expect(index).toContain("type PromptName = keyof typeof prompts");
-    expect(index).toContain("type PromptArgs<Name extends PromptName> = Parameters<(typeof prompts)[Name]>");
-    expect(index).toContain("export function renderPrompt<Name extends PromptName>(");
+    expect(index).toContain(
+      "type PromptArgs<Name extends PromptName> = Parameters<(typeof prompts)[Name]>",
+    );
+    expect(index).toContain(
+      "export function renderPrompt<Name extends PromptName>(",
+    );
     expect(index).toContain("...args: PromptArgs<Name>");
   });
 
@@ -332,8 +369,12 @@ describe("generateFiles", () => {
     const files = generateFiles([partial, parent], map, opts);
     const welcomeFile = files.get(generatedPath(parent))!;
     // Type and build fn imported
-    expect(welcomeFile).toContain(`import { buildFooterPrompt } from "./shared/footer.tpl.gen.js"`);
-    expect(welcomeFile).toContain(`import type { FooterVariables } from "./shared/footer.tpl.gen.js"`);
+    expect(welcomeFile).toContain(
+      `import { buildFooterPrompt } from "./shared/footer.tpl.gen.js"`,
+    );
+    expect(welcomeFile).toContain(
+      `import type { FooterVariables } from "./shared/footer.tpl.gen.js"`,
+    );
     // Exposed in interface
     expect(welcomeFile).toContain("  footer: FooterVariables;");
     expect(welcomeFile).toContain("  userName: string;");
@@ -358,7 +399,9 @@ describe("generateFiles", () => {
     const files = generateFiles([partial, parent], map, opts);
     const welcomeFile = files.get(generatedPath(parent))!;
     // Build fn imported (not the raw file)
-    expect(welcomeFile).toContain(`import { buildStaticHeaderPrompt } from "./shared/static-header.tpl.gen.js"`);
+    expect(welcomeFile).toContain(
+      `import { buildStaticHeaderPrompt } from "./shared/static-header.tpl.gen.js"`,
+    );
     // NOT in the interface (not a field the caller provides)
     expect(welcomeFile).not.toContain("StaticHeaderVariables");
     // IS in the renderTemplate partials call (auto-rendered internally)

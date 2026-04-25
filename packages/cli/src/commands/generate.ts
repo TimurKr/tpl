@@ -1,6 +1,6 @@
-import path from "path";
+import path from "node:path";
 import { generate } from "@tpl/core";
-import { findProjectRoot, readConfig, buildOptions } from "../config.js";
+import { buildOptions, findProjectRoot, readConfig } from "../config.js";
 
 export async function runGenerate(options: {
   cwd?: string;
@@ -13,7 +13,7 @@ export async function runGenerate(options: {
     projectRoot = findProjectRoot(cwd);
   } catch (err) {
     process.stderr.write(
-      `Error: ${err instanceof Error ? err.message : String(err)}\n`
+      `Error: ${err instanceof Error ? err.message : String(err)}\n`,
     );
     process.exit(1);
   }
@@ -31,7 +31,7 @@ export async function runGenerate(options: {
     process.stdout.write(`✓ Generated ${result.count} prompt(s) → ${rel}\n`);
   } catch (err) {
     process.stderr.write(
-      `Error: ${err instanceof Error ? err.message : String(err)}\n`
+      `Error: ${err instanceof Error ? err.message : String(err)}\n`,
     );
     process.exit(1);
   }

@@ -1,11 +1,14 @@
-import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import { mkdirSync, writeFileSync, rmSync } from "fs";
-import { join } from "path";
-import { tmpdir } from "os";
-import { findProjectRoot, readConfig, buildOptions } from "../config.js";
+import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { buildOptions, findProjectRoot, readConfig } from "../config.js";
 
 function makeTempDir(): string {
-  const dir = join(tmpdir(), `tpl-cli-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  const dir = join(
+    tmpdir(),
+    `tpl-cli-test-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  );
   mkdirSync(dir, { recursive: true });
   return dir;
 }
@@ -54,23 +57,38 @@ describe("readConfig", () => {
   });
 
   it("returns empty config when no tpl key in package.json", () => {
-    writeFileSync(join(tempDir, "package.json"), JSON.stringify({ name: "test" }));
+    writeFileSync(
+      join(tempDir, "package.json"),
+      JSON.stringify({ name: "test" }),
+    );
     expect(readConfig(tempDir)).toEqual({});
   });
 
   it("returns tpl config from package.json", () => {
-    const config = { output: "generated/tpl.ts", pattern: "prompts/**/*.tpl.md" };
-    writeFileSync(join(tempDir, "package.json"), JSON.stringify({ name: "test", tpl: config }));
+    const config = {
+      output: "generated/tpl.ts",
+      pattern: "prompts/**/*.tpl.md",
+    };
+    writeFileSync(
+      join(tempDir, "package.json"),
+      JSON.stringify({ name: "test", tpl: config }),
+    );
     expect(readConfig(tempDir)).toEqual(config);
   });
 
   it("ignores tpl key if it's not an object", () => {
-    writeFileSync(join(tempDir, "package.json"), JSON.stringify({ name: "test", tpl: "invalid" }));
+    writeFileSync(
+      join(tempDir, "package.json"),
+      JSON.stringify({ name: "test", tpl: "invalid" }),
+    );
     expect(readConfig(tempDir)).toEqual({});
   });
 
   it("ignores tpl key if it's an array", () => {
-    writeFileSync(join(tempDir, "package.json"), JSON.stringify({ name: "test", tpl: [] }));
+    writeFileSync(
+      join(tempDir, "package.json"),
+      JSON.stringify({ name: "test", tpl: [] }),
+    );
     expect(readConfig(tempDir)).toEqual({});
   });
 });
@@ -85,7 +103,9 @@ describe("buildOptions", () => {
   });
 
   it("uses custom output from config", () => {
-    const opts = buildOptions("/project", { output: "generated/prompts.gen.ts" });
+    const opts = buildOptions("/project", {
+      output: "generated/prompts.gen.ts",
+    });
     expect(opts.outputFile).toBe("/project/generated/prompts.gen.ts");
   });
 

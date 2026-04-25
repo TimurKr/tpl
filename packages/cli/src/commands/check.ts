@@ -1,6 +1,6 @@
-import path from "path";
+import path from "node:path";
 import { check } from "@tpl/core";
-import { findProjectRoot, readConfig, buildOptions } from "../config.js";
+import { buildOptions, findProjectRoot, readConfig } from "../config.js";
 
 export async function runCheck(options: {
   cwd?: string;
@@ -13,7 +13,7 @@ export async function runCheck(options: {
     projectRoot = findProjectRoot(cwd);
   } catch (err) {
     process.stderr.write(
-      `Error: ${err instanceof Error ? err.message : String(err)}\n`
+      `Error: ${err instanceof Error ? err.message : String(err)}\n`,
     );
     process.exit(1);
   }
@@ -34,16 +34,18 @@ export async function runCheck(options: {
       return;
     }
 
-    process.stderr.write(`Generated prompts are out of date. Run \`tpl generate\`.\n`);
+    process.stderr.write(
+      `Generated prompts are out of date. Run \`tpl generate\`.\n`,
+    );
     for (const issue of result.issues) {
       process.stderr.write(
-        `  ${issue.kind.padEnd(7)} ${path.relative(projectRoot, issue.filePath)}\n`
+        `  ${issue.kind.padEnd(7)} ${path.relative(projectRoot, issue.filePath)}\n`,
       );
     }
     process.exit(1);
   } catch (err) {
     process.stderr.write(
-      `Error: ${err instanceof Error ? err.message : String(err)}\n`
+      `Error: ${err instanceof Error ? err.message : String(err)}\n`,
     );
     process.exit(1);
   }
