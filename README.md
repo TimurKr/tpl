@@ -135,9 +135,12 @@ Implementation steps:
    - repeated persona, tone, safety, formatting, or output schema instructions
 
 5. Decide what should become a template.
+   - Follow the "Prompt Design Practices" section in this README.
    - Extract large human-authored prompt prose, reusable instructions, output contracts, personas, safety rules, integration guides, and model-facing explanations.
    - Extract section formats when they are part of the final prompt. For example, a source-document section template should contain the heading, explanation, fallback wording, and `{{body}}` placeholder.
    - Extract conditional prompt wording into templates with `{{#if var}}...{{/if}}` instead of building those sentences in TypeScript.
+   - Do not split a prompt into subprompts just to make more files. A subprompt should be reused meaningfully or represent one coherent functional unit.
+   - Avoid one-line templates. Even if a line appears twice, keep it inline inside the parent template unless it has a real name, ownership, and reason to exist independently.
    - Do not extract tiny non-prompt UI labels or generic string utilities just because they contain text.
    - If TypeScript is still deciding how the prompt reads, move that wording into a template.
 
@@ -248,10 +251,16 @@ Implementation steps:
    - Review the diff for under-extraction. If prompt wording, headings, descriptions, separators, truncation notes, or conditional prose are still authored in TypeScript, move them into templates.
    - Review the diff for manual prompt composition. If TypeScript calls `prompts.foo()` only to pass that string into `prompts.bar({ foo })`, replace that variable slot with `{{> foo}}` and pass only `foo`'s data as nested variables.
    - Review the diff for over-extraction. If a `.tpl.md` file is only a non-prompt utility string, move it back to TypeScript.
+   - Review the diff for over-abstraction. If a `.tpl.md` file is one line, used only once, or not a coherent functional unit, fold it back into its parent template.
    - Search for wrapper-only functions and remove them unless they have a real reason to exist.
    - Check that large prompt assembly flows through a top-level generated prompt function where practical.
 
 13. Propose Pass 2 structure. Do not implement it yet.
+   - Write this proposal for a human maintainer, not as terse internal notes.
+   - Start with a short status sentence, for example: "Done. TPL is installed and the prompts now live in `.tpl.md` files. The code works, but I see a cleaner structure we could do as a second pass."
+   - Explain why Pass 2 would be cleaner in practical terms: easier navigation, fewer giant files, clearer ownership, less prompt assembly code, fewer wrapper functions, or fewer files if over-extraction happened.
+   - Include concrete before/after examples from the repo. Name actual files and show where one prompt or section would move.
+   - Estimate the impact where possible: approximate lines removed from an assembler, number of temporary prompt files folded back, number of modules created, or which imports/call sites get simpler.
    - Analyze the prompt-building code after Pass 1.
    - If one file still owns one mega prompt with many sections, propose splitting it into small responsibility modules.
    - "Responsibility" can mean product feature, domain, section, topic, prompt subsection, or ownership area. Use the code's natural concepts, not only UI/product features.
@@ -260,6 +269,7 @@ Implementation steps:
    - Avoid a permanent central `src/prompts/` dumping ground for responsibility-owned prompts. A central prompt folder is only for genuinely shared templates such as base persona, safety rules, or output format.
    - Include a proposed file tree, a list of moves, and the call-site changes needed.
    - Make the recommendation concrete enough that the user can reply "yes, do this" and the next agent can implement it.
+   - End with a clear approval question, for example: "Want me to do this Pass 2 restructure?"
    - Example target shape:
      src/
        integrations/
@@ -349,6 +359,41 @@ const prompt = prompts.welcomeEmail({
 - A manifest at `lib/tpl.gen.ts` with `prompts.<name>()` and `renderPrompt()`.
 - Compile-time errors for missing variables, wrong variable names, duplicate prompt names, and broken includes.
 - `tpl watch` for development, `tpl generate` for builds, `tpl check` for CI drift checks.
+
+## Prompt Design Practices
+
+TPL works best when Markdown owns the prompt and TypeScript owns the data.
+
+Good practice:
+
+- Put model-facing wording in `.tpl.md`: headings, instructions, separators, fallback text, truncation notes, and conditional prose.
+- Use `{{> partialName}}` when one prompt includes another prompt.
+- Pass raw data into prompts, not already-rendered prompt strings.
+- Keep TypeScript focused on loading files, counting things, reading config, and passing values into generated functions.
+- Create a subprompt only when it is reused meaningfully or is one coherent functional unit with a clear name.
+
+Bad practice:
+
+- Do not build prompt prose with string concatenation in TypeScript.
+- Do not call `prompts.foo()` just to pass that rendered string into `prompts.bar({ foo })`; use `{{> foo}}` and pass `foo`'s variables instead.
+- Do not create one-line templates unless that line has real ownership and a reason to exist independently.
+- Do not split a readable prompt into tiny fragments just because a sentence appears twice.
+- Do not leave a function whose main job is choosing which prompt snippets to render. That logic usually belongs in one parent template with conditionals.
+
+```typescript
+// Bad: TypeScript is still composing the prompt.
+return prompts.contactsSection({
+  body,
+  moreNote: prompts.contactsMoreNote({ count }),
+});
+
+// Better: contacts.tpl.md owns the wording and conditionals.
+return prompts.contacts({
+  body,
+  count,
+  hasMore: count > 0,
+});
+```
 
 ## Template Syntax
 
