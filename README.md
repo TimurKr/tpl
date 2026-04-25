@@ -53,7 +53,7 @@ const { text } = await generateText({
 Paste this to your coding agent:
 
 ```text
-Add TPL to this repo. Read the full agent setup prompt in the TPL README and follow it closely: https://github.com/TimurKr/tpl#quick-start
+Add TPL to this repo. Fetch the raw TPL README, read the full agent setup prompt under Quick start, and follow it closely: https://raw.githubusercontent.com/TimurKr/tpl/main/README.md
 ```
 
 Want to review what you just asked the machine to do? Expand this:
@@ -65,7 +65,17 @@ Want to review what you just asked the machine to do? Expand this:
 You are helping add TPL (The Prompting Library) to this TypeScript codebase.
 
 Goal:
-Move prompt text out of inline strings and into .tpl.md files. TPL will generate typed TypeScript prompt builder functions so prompt call sites get autocomplete and compile-time checks.
+Move real prompt prose out of inline strings and into .tpl.md files. TPL will generate typed TypeScript prompt builder functions so prompt call sites get autocomplete and compile-time checks.
+
+Do not only "move strings around." TPL should become the main prompt-building mechanism. Use this as a chance to make prompt ownership clearer.
+
+Target architecture:
+- Markdown templates should own the model-facing prompt: headings, labels, descriptions, separators, fallback text, truncation notes, ordering notes, and conditional wording.
+- TypeScript should gather and normalize data, then pass that data into generated prompt functions.
+- TypeScript should not keep building prompt prose with string concatenation, arrays of hard-coded prompt lines, or helper functions whose main job is formatting model-facing text.
+- Prefer one top-level template for a full prompt, such as `assistant-instructions.tpl.md`, with variables and partials for sections.
+- Ideally the app ends with one obvious call like `prompts.systemPrompt({...})`. If dynamic repeated sections are needed, render each item with an item template, join those rendered items, and pass the result into the top-level template.
+- It is okay for TypeScript to compute facts like file contents, counts, config values, booleans, and lists. It is not okay for TypeScript to remain the place where prompt wording is authored.
 
 What TPL does:
 - Source prompts live in .tpl.md, .tpl.mdx, .tpl.txt, or .tpl.html files.
@@ -88,9 +98,11 @@ Implementation steps:
 
 1. Inspect the project.
    - Detect the package manager.
+   - Detect whether this is a monorepo and which package owns the prompts.
    - Detect the main app scripts.
    - Detect whether generated files are committed in this repo.
    - Check TypeScript module settings so imports use the right style.
+   - Prefer package-local TPL config/output in monorepos. Do not make unrelated packages depend on one package's generated template declarations unless the repo already shares source that way.
 
 2. Install TPL as a dev dependency.
    - npm: `npm install -D the-prompting-library`
@@ -101,6 +113,8 @@ Implementation steps:
 3. Add scripts.
    - Development: run `tpl watch` alongside the normal dev server.
      Example: `"dev": "tpl watch & next dev"`
+   - If the repo already uses a parallel runner, use that instead of shell `&`.
+   - If `&` would be brittle, add a separate `dev:tpl` script and document that it should run beside the app dev server.
    - Build/CI: run `tpl generate` before typecheck/build.
      Example: `"build": "tpl generate && next build"`
    - If the repo has a separate typecheck script, ensure `tpl generate` runs before it in CI.
@@ -114,8 +128,21 @@ Implementation steps:
    - objects like `{ role: "system", content: "..." }`
    - repeated persona, tone, safety, formatting, or output schema instructions
 
-5. Extract each prompt.
-   - Create a `.tpl.md` file next to the code that uses the prompt.
+5. Decide what should become a template.
+   - Extract large human-authored prompt prose, reusable instructions, output contracts, personas, safety rules, integration guides, and model-facing explanations.
+   - Extract section formats when they are part of the final prompt. For example, a source-document section template should contain the heading, explanation, fallback wording, and `{{body}}` placeholder.
+   - Extract conditional prompt wording into templates with `{{#if var}}...{{/if}}` instead of building those sentences in TypeScript.
+   - Do not extract tiny non-prompt UI labels or generic string utilities just because they contain text.
+   - If TypeScript is still deciding how the prompt reads, move that wording into a template.
+
+6. Place templates with the feature that owns them.
+   - Prefer colocating each `.tpl.md` file next to the code that uses it.
+   - If prompts were previously all in one large file, consider splitting that file into feature/domain folders first, then colocate each prompt with its feature.
+   - Good examples: `src/billing/invoice-summary.tpl.md`, `src/search/query-rewrite.tpl.md`, `src/support/ticket-classifier.tpl.md`.
+   - Avoid dumping every prompt into one central `src/prompts/` folder unless the prompts are truly shared across many features.
+   - Shared persona, safety, and output-format prompts can live in a shared prompt folder.
+
+7. Extract each chosen prompt.
    - Use kebab-case names: `welcome-email.tpl.md`, `classify-ticket.tpl.md`.
    - Add frontmatter when useful:
      ---
@@ -126,21 +153,33 @@ Implementation steps:
    - Use defaults for optional values.
    - Use `{{#if var}}...{{/if}}` for optional sections.
 
-6. Extract shared prompt text.
+8. Extract shared prompt text.
    - Move repeated persona, safety rules, response style, and output format text into partial templates.
    - Example: `src/prompts/base-persona.tpl.md`
    - Include with `{{> basePersona}}`.
    - Partials without variables are rendered automatically.
    - Partials with variables become nested typed fields.
 
-7. Generate files.
+9. Create a top-level prompt template when assembling a large prompt.
+   - If the original code had one big `systemPrompt` or prompt assembler, create a top-level `.tpl.md` file for that final prompt.
+   - Put the final order, section headings, separators, and section inclusion rules in that top-level template.
+   - Use variables for dynamic data: `{{userContext}}`, `{{retrievedDocuments}}`, `{{availableActions}}`, `{{responseRules}}`.
+   - Use partials for static or reusable sections: `{{> basePersona}}`, `{{> safetyRules}}`, `{{> outputFormat}}`.
+   - The TypeScript assembler should become mostly data loading plus a final call to the generated top-level prompt function.
+
+10. Generate files.
    - Run `tpl generate`.
    - Confirm each template has a sibling `*.tpl.gen.ts`.
    - Confirm the manifest exists at `lib/tpl.gen.ts` unless the project configured another output.
    - Do not edit generated files manually.
+   - Decide whether generated files should be committed by following the repo's existing convention. If source typechecks on clean checkout without running generation, commit them. If CI always generates first, they may be ignored.
+   - Ensure the generated `tpl.gen.env.d.ts` is included by TypeScript. Some projects may also need TypeScript settings such as `allowArbitraryExtensions`.
 
-8. Refactor call sites.
+11. Refactor call sites.
    Replace inline strings with generated prompt functions.
+   Prefer importing from the generated manifest/barrel:
+     import { prompts } from "./lib/tpl.gen.js";
+   Use direct generated-file imports only when bundle size, client/server boundaries, or package boundaries make the barrel undesirable.
 
    Before:
      const prompt = `Write a welcome email to ${user.name}. Plan: ${plan}.`;
@@ -163,22 +202,41 @@ Implementation steps:
        }),
      });
 
-9. Verify.
+   Remove wrapper-only functions created by the refactor.
+
+   Bad:
+     function buildWelcomeEmailPrompt(...args): string {
+       return prompts.welcomeEmail(...args);
+     }
+
+   Better:
+     const prompt = prompts.welcomeEmail(...args);
+
+   Keep a wrapper only when it preserves a public API, adds real logic, validates input, or is needed for compatibility. Otherwise update callers to use the generated prompt function directly.
+
+12. Verify.
    - Run `tpl generate`.
    - Run the repo's typecheck.
    - Run the repo's tests if they exist.
    - Fix any generated TypeScript errors by correcting template variables, duplicate names, or broken includes.
+   - Review the diff for under-extraction. If prompt wording, headings, descriptions, separators, truncation notes, or conditional prose are still authored in TypeScript, move them into templates.
+   - Review the diff for over-extraction. If a `.tpl.md` file is only a non-prompt utility string, move it back to TypeScript.
+   - Review folder structure. If everything landed in one prompt folder, reorganize by feature where reasonable.
+   - Search for wrapper-only functions and remove them unless they have a real reason to exist.
+   - Check that large prompt assembly flows through a top-level generated prompt function where practical.
 
-10. Report what changed.
+13. Report what changed.
    - List installed package/script changes.
    - List created `.tpl.md` files.
    - List refactored call sites.
+   - List any feature folders created or reorganized.
+   - List wrapper-only functions removed.
    - Mention any prompts intentionally left inline and why.
 ```
 
 </details>
 
-Manual setup:
+## Manual setup:
 
 ### 1. Install
 
