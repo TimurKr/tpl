@@ -37,9 +37,16 @@ export function buildOptions(
   projectRoot: string,
   config: TplConfig,
 ): GenerateOptions {
+  const output = config.output ?? "lib/tpl.gen.ts";
+  const defaultTypesOutput = path.join(path.dirname(output), "tpl.d.ts");
+
   return {
     rootDir: projectRoot,
-    outputFile: path.join(projectRoot, config.output ?? "lib/tpl.gen.ts"),
+    outputFile: path.join(projectRoot, output),
+    typesOutputFile: path.join(
+      projectRoot,
+      config.typesOutput ?? defaultTypesOutput,
+    ),
     pattern: config.pattern ?? "**/*.tpl.{md,mdx,txt,html}",
     ignore: config.ignore ?? [],
   };

@@ -145,7 +145,7 @@ describe("parseTemplate", () => {
     });
   });
 
-  it("variables in {{#if}} blocks are marked optional", async () => {
+  it("variables in {{#if}} blocks are marked optional while preserving usage type", async () => {
     const path = await write(
       "note.tpl.md",
       "Hello!\n{{#if note}}\n**Note:** {{note}}\n{{/if}}",
@@ -154,9 +154,10 @@ describe("parseTemplate", () => {
     const noteVar = result.variables.find((v) => v.name === "note");
     expect(noteVar).toBeDefined();
     expect(noteVar?.optional).toBe(true);
+    expect(noteVar?.type).toBe("string");
   });
 
-  it("condition-only variable is still included", async () => {
+  it("condition-only variable is inferred as optional boolean", async () => {
     const path = await write(
       "beta.tpl.md",
       "{{#if betaUser}}\nBeta features enabled.\n{{/if}}",
@@ -165,6 +166,7 @@ describe("parseTemplate", () => {
     const v = result.variables.find((v) => v.name === "betaUser");
     expect(v).toBeDefined();
     expect(v?.optional).toBe(true);
+    expect(v?.type).toBe("boolean");
   });
 
   it("deduplicates variables preserving order", async () => {

@@ -26,6 +26,8 @@ export interface GenerateOptions {
   rootDir: string;
   /** Absolute path to the generated barrel file (e.g. /project/lib/tpl.gen.ts) */
   outputFile: string;
+  /** Absolute path to ambient declarations for .tpl.* imports. Defaults beside outputFile. */
+  typesOutputFile?: string;
   pattern?: string;
   ignore?: string[];
 }
@@ -33,6 +35,8 @@ export interface GenerateOptions {
 export interface TplConfig {
   /** Relative path to the generated barrel file. Defaults to "lib/tpl.gen.ts". */
   output?: string;
+  /** Relative path to ambient declarations. Defaults beside output as "tpl.d.ts". */
+  typesOutput?: string;
   pattern?: string;
   ignore?: string[];
 }

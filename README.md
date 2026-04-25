@@ -135,12 +135,30 @@ Implementation steps:
    - Do not extract tiny non-prompt UI labels or generic string utilities just because they contain text.
    - If TypeScript is still deciding how the prompt reads, move that wording into a template.
 
-6. Place templates with the feature that owns them.
-   - Prefer colocating each `.tpl.md` file next to the code that uses it.
-   - If prompts were previously all in one large file, consider splitting that file into feature/domain folders first, then colocate each prompt with its feature.
-   - Good examples: `src/billing/invoice-summary.tpl.md`, `src/search/query-rewrite.tpl.md`, `src/support/ticket-classifier.tpl.md`.
-   - Avoid dumping every prompt into one central `src/prompts/` folder unless the prompts are truly shared across many features.
-   - Shared persona, safety, and output-format prompts can live in a shared prompt folder.
+6. Restructure prompt-heavy code by feature before extracting.
+   - If one file owns many unrelated prompt sections, split it into small feature/domain modules as part of the migration.
+   - Each feature folder should own both the TypeScript that gathers data and the `.tpl.md` files that describe that feature's prompt text.
+   - Do not create a central `src/prompts/` dumping ground for feature-owned prompts.
+   - A central prompt folder is only acceptable for genuinely shared templates such as base persona, safety rules, or output format.
+   - Good target shape:
+     src/
+       billing/
+         invoice-summary.ts
+         invoice-summary.tpl.md
+       search/
+         query-rewrite.ts
+         query-rewrite.tpl.md
+       support/
+         ticket-classifier.ts
+         ticket-classifier.tpl.md
+   - Bad target shape:
+     src/
+       prompts/
+         invoice-summary.tpl.md
+         query-rewrite.tpl.md
+         ticket-classifier.tpl.md
+       giant-prompt-assembler.ts
+   - If the migration ends with one unchanged giant assembler plus a folder full of unrelated templates, the migration is incomplete. Refactor the assembler into feature modules and colocate the templates.
 
 7. Extract each chosen prompt.
    - Use kebab-case names: `welcome-email.tpl.md`, `classify-ticket.tpl.md`.
@@ -173,7 +191,7 @@ Implementation steps:
    - Confirm the manifest exists at `lib/tpl.gen.ts` unless the project configured another output.
    - Do not edit generated files manually.
    - Decide whether generated files should be committed by following the repo's existing convention. If source typechecks on clean checkout without running generation, commit them. If CI always generates first, they may be ignored.
-   - Ensure the generated `tpl.gen.env.d.ts` is included by TypeScript. Some projects may also need TypeScript settings such as `allowArbitraryExtensions`.
+   - Ensure the generated `tpl.d.ts` is included by TypeScript. Generated files reference it automatically, but custom TS project boundaries may still require including it explicitly.
 
 11. Refactor call sites.
    Replace inline strings with generated prompt functions.
@@ -276,7 +294,7 @@ TPL writes:
 ```text
 src/features/auth/welcome-email.tpl.gen.ts
 lib/tpl.gen.ts
-lib/tpl.gen.env.d.ts
+lib/tpl.d.ts
 ```
 
 ### 5. Use it
@@ -320,6 +338,8 @@ Conditionals:
 Note: {{note}}
 {{/if}}
 ```
+
+If a variable only appears in a conditional, it is typed as `boolean | undefined`. If it also appears as `{{note}}`, `{{note:number}}`, or another variable expression, TPL uses that variable's declared type and marks it optional.
 
 Includes:
 
@@ -400,7 +420,7 @@ Generated prompt modules import source templates as text:
 import TEMPLATE from "./welcome-email.tpl.md" with { type: "text" };
 ```
 
-TPL also generates `tpl.gen.env.d.ts` so TypeScript understands `.tpl.md`, `.tpl.mdx`, `.tpl.txt`, and `.tpl.html` imports.
+TPL also generates `tpl.d.ts` so TypeScript understands `.tpl.md`, `.tpl.mdx`, `.tpl.txt`, and `.tpl.html` imports. Generated files reference it automatically, but a separate TypeScript project that imports source across package boundaries may still need to include that file or define equivalent ambient declarations.
 
 Your runtime or bundler still needs to load those template files as text. Bun supports this style directly; framework setup may need a text/raw-file loader.
 

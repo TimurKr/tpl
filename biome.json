@@ -7,7 +7,7 @@
       "!**/node_modules",
       "!apps/example/**/*.tpl.gen.ts",
       "!apps/example/lib/tpl.gen.ts",
-      "!apps/example/lib/tpl.gen.env.d.ts"
+      "!apps/example/lib/tpl.d.ts"
     ]
   },
   "formatter": {

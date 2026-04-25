@@ -67,6 +67,7 @@ describe("readConfig", () => {
   it("returns tpl config from package.json", () => {
     const config = {
       output: "generated/tpl.ts",
+      typesOutput: "generated/tpl.d.ts",
       pattern: "prompts/**/*.tpl.md",
     };
     writeFileSync(
@@ -98,6 +99,7 @@ describe("buildOptions", () => {
     const opts = buildOptions("/project", {});
     expect(opts.rootDir).toBe("/project");
     expect(opts.outputFile).toBe("/project/lib/tpl.gen.ts");
+    expect(opts.typesOutputFile).toBe("/project/lib/tpl.d.ts");
     expect(opts.pattern).toBe("**/*.tpl.{md,mdx,txt,html}");
     expect(opts.ignore).toEqual([]);
   });
@@ -107,6 +109,14 @@ describe("buildOptions", () => {
       output: "generated/prompts.gen.ts",
     });
     expect(opts.outputFile).toBe("/project/generated/prompts.gen.ts");
+    expect(opts.typesOutputFile).toBe("/project/generated/tpl.d.ts");
+  });
+
+  it("uses custom typesOutput from config", () => {
+    const opts = buildOptions("/project", {
+      typesOutput: "generated/tpl.d.ts",
+    });
+    expect(opts.typesOutputFile).toBe("/project/generated/tpl.d.ts");
   });
 
   it("uses custom pattern from config", () => {

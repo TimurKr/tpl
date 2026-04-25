@@ -48,7 +48,7 @@ Supported variable syntax:
 - `{{name:number}}` — typed (string | number | boolean | string[])
 - `{{name|default}}` — optional with default
 - `{{name:number|0}}` — typed optional with default
-- `{{#if name}}...{{/if}}` — conditional block (auto-marks `name` as optional)
+- `{{#if name}}...{{/if}}` — conditional block (condition-only names become optional booleans; names also used as variables keep that variable type and become optional)
 - `{{> partialName}}` — include a partial by name (camelCase or kebab-case)
 
 ---
@@ -66,7 +66,7 @@ src/
 
 lib/
   tpl.gen.ts                ← prompts const + renderPrompt()
-  tpl.gen.env.d.ts          ← *.tpl.* ambient module declarations
+  tpl.d.ts                  ← *.tpl.* ambient module declarations
 ```
 
 ---
@@ -88,7 +88,7 @@ export interface WelcomeEmailVariables {
   userName: string;
   productName: string;
   planType?: string;        // optional — has default "free"
-  note?: string;            // optional — appears only in {{#if}}
+  note?: string;            // optional — appears in {{#if}} and {{note}}
   basePersona: BasePersonaVariables;  // nested partial vars
 }
 

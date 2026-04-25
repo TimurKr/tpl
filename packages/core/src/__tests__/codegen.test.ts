@@ -53,7 +53,7 @@ describe("generateFiles", () => {
     expect(files.has("/project/foo.tpl.gen.ts")).toBe(true);
     expect(files.has("/project/bar.tpl.gen.ts")).toBe(true);
     expect(files.has("/project/lib/tpl.gen.ts")).toBe(true);
-    expect(files.has("/project/lib/tpl.gen.env.d.ts")).toBe(true);
+    expect(files.has("/project/lib/tpl.d.ts")).toBe(true);
     // 2 prompt files + manifest + ambient declarations
     expect(files.size).toBe(4);
   });
@@ -101,6 +101,19 @@ describe("generateFiles", () => {
     const files = generateFiles([t], makeMap([t]), opts);
     const prompt = files.get(generatedPath(t))!;
     expect(prompt).toContain("export function buildWelcomeEmailPrompt(");
+  });
+
+  it("does not double Prompt suffix for prompt-named templates", () => {
+    const t = makeTemplate({
+      functionName: "systemPrompt",
+      rawContent: "You are helpful.",
+    });
+    const files = generateFiles([t], makeMap([t]), opts);
+    const prompt = files.get(generatedPath(t))!;
+    expect(prompt).toContain("export function buildSystemPrompt(");
+    expect(prompt).toContain(
+      "export const buildSystemPromptPrompt: typeof buildSystemPrompt = buildSystemPrompt;",
+    );
   });
 
   it("generates interface with required string variable", () => {
@@ -182,8 +195,9 @@ describe("generateFiles", () => {
     const prompt = files.get(generatedPath(t))!;
     expect(prompt).toContain("export interface StaticPromptVariables {}");
     // Function still takes no params when there are no vars — empty interface is for the type only
+    expect(prompt).toContain("export function buildStaticPrompt(): string {");
     expect(prompt).toContain(
-      "export function buildStaticPromptPrompt(): string {",
+      "export const buildStaticPromptPrompt: typeof buildStaticPrompt = buildStaticPrompt;",
     );
     expect(prompt).not.toContain("(vars:");
   });
@@ -203,22 +217,33 @@ describe("generateFiles", () => {
     expect(prompt).not.toContain("const TEMPLATE");
   });
 
-  it("does not include a triple-slash reference directive", () => {
+  it("includes a triple-slash reference directive to tpl.d.ts", () => {
     const t = makeTemplate({ functionName: "greet", rawContent: "Hello" });
     const files = generateFiles([t], makeMap([t]), opts);
     const prompt = files.get(generatedPath(t))!;
-    expect(prompt).not.toContain(`/// <reference path`);
+    expect(prompt).toContain(`/// <reference path="./lib/tpl.d.ts" />`);
   });
 
-  it("generates tpl.gen.env.d.ts with ambient declarations for all supported extensions", () => {
+  it("generates tpl.d.ts with ambient declarations for all supported extensions", () => {
     const t = makeTemplate({ functionName: "greet", rawContent: "Hello" });
     const files = generateFiles([t], makeMap([t]), opts);
-    const dts = files.get("/project/lib/tpl.gen.env.d.ts")!;
+    const dts = files.get("/project/lib/tpl.d.ts")!;
     expect(dts).toContain(`declare module "*.tpl.md"`);
     expect(dts).toContain(`declare module "*.tpl.mdx"`);
     expect(dts).toContain(`declare module "*.tpl.txt"`);
     expect(dts).toContain(`declare module "*.tpl.html"`);
     expect(dts).toContain(`export default content`);
+  });
+
+  it("supports custom typesOutputFile", () => {
+    const t = makeTemplate({ functionName: "greet", rawContent: "Hello" });
+    const files = generateFiles([t], makeMap([t]), {
+      ...opts,
+      typesOutputFile: "/project/src/tpl.d.ts",
+    });
+    const prompt = files.get(generatedPath(t))!;
+    expect(files.has("/project/src/tpl.d.ts")).toBe(true);
+    expect(prompt).toContain(`/// <reference path="./src/tpl.d.ts" />`);
   });
 
   it("template content is NOT inlined — no backtick escaping needed", () => {

@@ -42,7 +42,7 @@ Focus on: {{focusArea|key decisions}}
 {{/if}}
 ```
 
-Variables that appear only inside `{{#if}}` blocks are automatically typed as optional. The block is omitted when the variable is falsy or missing.
+Variables that appear only inside `{{#if}}` blocks are typed as optional booleans. If the same variable also appears as `{{note}}`, `{{note:number}}`, or another variable expression, TPL uses that declared type and marks it optional. The block is omitted when the variable is falsy or missing.
 
 ## Includes
 

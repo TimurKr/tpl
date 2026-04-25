@@ -56,7 +56,7 @@ node packages/cli/dist/index.cjs generate --cwd apps/example
 {{var}}               required string variable
 {{var:type}}          typed: string | number | boolean | string[]
 {{var|default}}       optional with fallback
-{{#if var}}...{{/if}} conditional block
+{{#if var}}...{{/if}} conditional block (condition-only vars are optional booleans)
 {{> partialName}}     include another template
 ```
 

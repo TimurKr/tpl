@@ -91,10 +91,11 @@ export async function parseTemplate(
     }
   }
 
-  // Any variable referenced in {{#if}} but not as {{var}} directly is still optional
+  // Condition-only variables are boolean flags. If the same variable also appears
+  // as {{var}} or {{var:type}}, keep that declaration's type and mark it optional.
   for (const condVar of conditionalVars) {
     if (!seen.has(condVar)) {
-      seen.set(condVar, { name: condVar, type: "string", optional: true });
+      seen.set(condVar, { name: condVar, type: "boolean", optional: true });
     }
   }
 
