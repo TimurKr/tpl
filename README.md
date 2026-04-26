@@ -370,6 +370,7 @@ Good practice:
 - Use `{{> partialName}}` when one prompt includes another prompt.
 - Pass raw data into prompts, not already-rendered prompt strings.
 - Keep TypeScript focused on loading files, counting things, reading config, and passing values into generated functions.
+- Use the exported `*Variables` interfaces when typing helper boundaries. TPL already exports argument interfaces, so you should not need `Parameters<typeof prompts.somePrompt>[0]`.
 - Create a subprompt only when it is reused meaningfully or is one coherent functional unit with a clear name.
 
 Bad practice:
@@ -393,6 +394,17 @@ return prompts.contacts({
   count,
   hasMore: count > 0,
 });
+```
+
+```typescript
+import type { ContactsVariables } from "./contacts.tpl.gen.js";
+
+function loadContacts(workspaceDir: string): ContactsVariables {
+  return {
+    body: readContacts(workspaceDir),
+    hasMore: true,
+  };
+}
 ```
 
 ## Template Syntax
