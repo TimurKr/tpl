@@ -33,7 +33,7 @@ Prompts exist as inline string literals scattered across AI app codebases:
 description: Welcome email for new users
 ---
 
-{{> basePersona}}
+{{> ../../shared/base-persona}}
 
 Write a welcome email to {{userName}} who just signed up for {{productName}}.
 Their plan is {{planType|free}}. Keep it under 150 words.
@@ -49,7 +49,8 @@ Supported variable syntax:
 - `{{name|default}}` — optional with default
 - `{{name:number|0}}` — typed optional with default
 - `{{#if name}}...{{/if}}` — conditional block (condition-only names become optional booleans; names also used as variables keep that variable type and become optional)
-- `{{> partialName}}` — include a partial by name (camelCase or kebab-case)
+- `{{> ./partial-name}}` — include a partial by relative path
+- `{{> ./partial-name as localName}}` — include a partial and expose its variables under a local alias
 
 ---
 
@@ -106,8 +107,12 @@ Every template always exports its interface (even if empty), so parent templates
 ```typescript
 import { prompts, renderPrompt } from "./lib/tpl.gen.ts";
 
-// Recommended: short key via prompts object
-prompts.welcomeEmail({ userName: "Alice", productName: "Acme", basePersona: {} });
+// Recommended: path-based key via prompts object
+prompts.features.auth.welcomeEmail({
+  userName: "Alice",
+  productName: "Acme",
+  persona: {},
+});
 
 // Tree-shaking: import a single build function
 import { buildWelcomeEmailPrompt } from "./src/features/auth/welcome-email.tpl.gen.ts";

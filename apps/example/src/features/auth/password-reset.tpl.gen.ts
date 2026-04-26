@@ -6,23 +6,23 @@
 //   {{var:type}}          typed: string | number | boolean | string[]
 //   {{var|default}}       optional — uses default when omitted
 //   {{#if var}}...{{/if}} conditional block — condition-only vars are optional booleans
-//   {{> name}}            partial — vars-less partials auto-render; vars partials become nested interface fields
+//   {{> ./path}}          relative partial — vars-less partials auto-render; vars partials become nested interface fields
 // Docs: https://github.com/timurkr/tpl
 
 import { renderTemplate } from "the-prompting-library/runtime";
 import TEMPLATE from "./password-reset.tpl.md" with { type: "text" };
-import { buildBasePersonaPrompt } from "../../shared/base-persona.tpl.gen.js";
+import { buildSharedBasePersonaPrompt } from "../../shared/base-persona.tpl.gen.js";
 
 /**
  * Password reset email
  * @source src/features/auth/password-reset.tpl.md
  */
-export interface PasswordResetVariables {
+export interface AuthPasswordResetVariables {
   userName: string;
   expiryHours: string;
   productName: string;
 }
 
-export function buildPasswordResetPrompt(vars: PasswordResetVariables): string {
-  return renderTemplate(TEMPLATE, vars, { basePersona: buildBasePersonaPrompt() });
+export function buildAuthPasswordResetPrompt(vars: AuthPasswordResetVariables): string {
+  return renderTemplate(TEMPLATE, vars, { "persona": buildSharedBasePersonaPrompt() });
 }

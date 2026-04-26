@@ -6,22 +6,22 @@
 //   {{var:type}}          typed: string | number | boolean | string[]
 //   {{var|default}}       optional — uses default when omitted
 //   {{#if var}}...{{/if}} conditional block — condition-only vars are optional booleans
-//   {{> name}}            partial — vars-less partials auto-render; vars partials become nested interface fields
+//   {{> ./path}}          relative partial — vars-less partials auto-render; vars partials become nested interface fields
 // Docs: https://github.com/timurkr/tpl
 
 import { renderTemplate } from "the-prompting-library/runtime";
 import TEMPLATE from "./search-query.tpl.md" with { type: "text" };
-import { buildBasePersonaPrompt } from "../../shared/base-persona.tpl.gen.js";
+import { buildSharedBasePersonaPrompt } from "../../shared/base-persona.tpl.gen.js";
 
 /**
  * Semantic search query rewriter
  * @source src/features/search/search-query.tpl.md
  */
-export interface SearchQueryVariables {
+export interface SearchSearchQueryVariables {
   userQuery: string;
   contextDescription: string;
 }
 
-export function buildSearchQueryPrompt(vars: SearchQueryVariables): string {
-  return renderTemplate(TEMPLATE, vars, { basePersona: buildBasePersonaPrompt() });
+export function buildSearchSearchQueryPrompt(vars: SearchSearchQueryVariables): string {
+  return renderTemplate(TEMPLATE, vars, { "persona": buildSharedBasePersonaPrompt() });
 }

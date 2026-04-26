@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
-import { basename } from "node:path";
+import { basename, relative } from "node:path";
 import matter from "gray-matter";
-import { INCLUDE_RE } from "./patterns.js";
+import { INCLUDE_RE, parseIncludeExpression } from "./patterns.js";
 import type { ParsedTemplate, VariableDef, VariableType } from "./types.js";
 
 // Matches {{var}}, {{var:type}}, {{var|default}}, {{var:type|default}}
@@ -19,9 +19,92 @@ export function deriveSourceStem(filePath: string): string {
   return base.replace(/\.tpl\.[^.]+$/, "");
 }
 
-export function deriveFunctionName(filePath: string): string {
-  const stem = deriveSourceStem(filePath);
-  return stem.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
+function stripTplExtension(path: string): string {
+  return path.replace(/\.tpl\.[^.]+$/, "");
+}
+
+function toPosixPath(path: string): string {
+  return path.split("\\").join("/");
+}
+
+function toAliasSegments(value: string): string[] {
+  return value.split(/[/.]/).filter(Boolean);
+}
+
+function applyNamespaceAliases(
+  stemPath: string,
+  namespaceAliases: Record<string, string> = {},
+): string {
+  let segments = stemPath.split("/").filter(Boolean);
+
+  for (const [from, to] of Object.entries(namespaceAliases)) {
+    const fromSegments = from.split("/").filter(Boolean);
+    const toSegments = toAliasSegments(to);
+    if (fromSegments.length === 0) continue;
+
+    if (fromSegments.length === 1) {
+      segments = segments.flatMap((segment) =>
+        segment === fromSegments[0] ? toSegments : [segment],
+      );
+      continue;
+    }
+
+    const matchesPrefix = fromSegments.every(
+      (segment, index) => segments[index] === segment,
+    );
+    if (matchesPrefix) {
+      segments = [...toSegments, ...segments.slice(fromSegments.length)];
+    }
+  }
+
+  return segments.join("/");
+}
+
+function toWords(segment: string): string[] {
+  return segment.split(/[^a-zA-Z0-9]+/).filter(Boolean);
+}
+
+function toPascal(words: string[]): string {
+  return words
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join("");
+}
+
+export function derivePromptPath(
+  filePath: string,
+  rootDir?: string,
+  namespaceAliases: Record<string, string> = {},
+): string[] {
+  const pathForName = rootDir
+    ? toPosixPath(relative(rootDir, filePath))
+    : basename(filePath);
+  const stemPath = applyNamespaceAliases(
+    stripTplExtension(pathForName),
+    namespaceAliases,
+  );
+  const segments = stemPath.split("/").filter(Boolean);
+  const meaningfulSegments =
+    segments[0] === "src" ? segments.slice(1) : segments;
+  const promptPath = meaningfulSegments
+    .map((segment) => {
+      const [first, ...rest] = toWords(segment);
+      return first
+        ? `${first.charAt(0).toLowerCase()}${first.slice(1)}${toPascal(rest)}`
+        : "";
+    })
+    .filter(Boolean);
+
+  return promptPath.length > 0 ? promptPath : [deriveSourceStem(filePath)];
+}
+
+export function deriveFunctionName(
+  filePath: string,
+  rootDir?: string,
+  namespaceAliases: Record<string, string> = {},
+): string {
+  const promptPath = derivePromptPath(filePath, rootDir, namespaceAliases);
+  const [first, ...rest] = promptPath;
+  return first ? `${first}${toPascal(rest)}` : deriveSourceStem(filePath);
 }
 
 /**
@@ -60,7 +143,8 @@ function parseVarExpr(expr: string): VariableDef {
 
 export async function parseTemplate(
   filePath: string,
-  _rootDir: string,
+  rootDir: string,
+  namespaceAliases: Record<string, string> = {},
 ): Promise<ParsedTemplate> {
   const raw = await readFile(filePath, "utf-8");
   const { data, content } = matter(raw);
@@ -109,13 +193,15 @@ export async function parseTemplate(
 
   const description =
     typeof data.description === "string" ? data.description : undefined;
+  const promptPath = derivePromptPath(filePath, rootDir, namespaceAliases);
 
   const base: ParsedTemplate = {
     filePath,
     sourceStem: deriveSourceStem(filePath),
-    functionName: deriveFunctionName(filePath),
+    functionName: deriveFunctionName(filePath, rootDir, namespaceAliases),
+    promptPath,
     variables,
-    includes,
+    includes: includes.map(parseIncludeExpression),
     rawContent: content.trim(),
   };
 

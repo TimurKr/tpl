@@ -38,7 +38,7 @@ describe("collector", () => {
       const templates = await collect({ rootDir, outputFile: outputFile() });
       expect(templates).toHaveLength(2);
       const names = templates.map((t) => t.functionName).sort();
-      expect(names).toEqual(["a", "b"]);
+      expect(names).toEqual(["a", "nestedB"]);
     });
 
     it("returns empty array when no .tpl.md files found", async () => {
@@ -168,7 +168,7 @@ describe("collector", () => {
       expect(files).not.toContain("tpl.gen.env.d.ts");
     });
 
-    it("manifest re-exports all prompts and defines prompts const with short keys", async () => {
+    it("manifest re-exports all prompts and defines nested prompts const", async () => {
       await writeTemplate("src/a.tpl.md", "A {{x}}");
       await writeTemplate("src/b.tpl.md", "B {{y}}");
       const out = outputFile();
@@ -181,6 +181,7 @@ describe("collector", () => {
       expect(index).toContain("export const prompts");
       expect(index).toContain("a: buildAPrompt,");
       expect(index).toContain("b: buildBPrompt,");
+      expect(index).toContain("export const promptMap");
     });
 
     it("manifest exports renderPrompt", async () => {
@@ -214,26 +215,63 @@ describe("collector", () => {
       expect(result.count).toBe(2);
       expect(result.outputFile).toBe(outputFile());
       expect(result.templates).toHaveLength(2);
+      expect(result.issues).toEqual([]);
     });
 
-    it("name collision: generates a collision file instead of throwing", async () => {
+    it("reports generation issues after writing diagnostic files", async () => {
+      await writeTemplate("src/greet.tpl.md", "A");
+      await writeTemplate("other/greet.tpl.md", "B");
+      const out = outputFile();
+
+      const result = await generate({
+        rootDir,
+        outputFile: out,
+        namespaceAliases: { other: "" },
+      });
+
+      expect(result.issues).toContainEqual({
+        kind: "name-collision",
+        filePath: join(rootDir, "src/greet.tpl.gen.ts"),
+      });
+      const generated = await readFile(
+        join(rootDir, "src/greet.tpl.gen.ts"),
+        "utf-8",
+      );
+      expect(generated).toContain("NAME COLLISION");
+    });
+
+    it("reports include errors after writing diagnostic files", async () => {
+      await writeTemplate("src/broken.tpl.md", "{{> ./missing}}");
+      const out = outputFile();
+
+      const result = await generate({ rootDir, outputFile: out });
+
+      expect(result.issues).toContainEqual({
+        kind: "include-error",
+        filePath: join(rootDir, "src/broken.tpl.gen.ts"),
+      });
+      const generated = await readFile(
+        join(rootDir, "src/broken.tpl.gen.ts"),
+        "utf-8",
+      );
+      expect(generated).toContain("TEMPLATE INCLUDE ERROR");
+    });
+
+    it("same file stems in different folders produce distinct prompt names", async () => {
       await writeTemplate("src/greet.tpl.md", "Hello");
       await writeTemplate("other/greet.tpl.md", "Hi");
       const out = outputFile();
 
-      // Must NOT reject — generation continues with a collision marker
       const result = await generate({ rootDir, outputFile: out });
 
       const files = await readdir(join(rootDir, "src"));
       expect(files).toContain("greet.tpl.gen.ts");
 
-      const content = await readFile(
-        join(rootDir, "src/greet.tpl.gen.ts"),
-        "utf-8",
-      );
-      expect(content).toContain("NAME COLLISION");
+      const index = await readFile(out, "utf-8");
+      expect(index).toContain("greet: buildGreetPrompt,");
+      expect(index).toContain("other: {");
+      expect(index).toContain("greet: buildOtherGreetPrompt,");
 
-      // Only one unique name, so count is 1 (deduplicated)
       expect(result.count).toBe(2); // 2 templates parsed
     });
 

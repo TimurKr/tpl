@@ -2,7 +2,7 @@
 description: Summarize a resolved support ticket
 ---
 
-{{> assistant}}
+{{> ../../shared/assistant as assistant}}
 
 Summarize the following resolved support ticket for internal records.
 

@@ -106,7 +106,7 @@ Search for inline prompt strings: template literals or variables named prompt, s
 STEP 3 — EXTRACT INTO .tpl.md FILES
 ───────────────────────────────────────────
 
-For each: create a kebab-case .tpl.md next to the source, use {{placeholders}}, optional frontmatter, shared content via {{> partialName}}.
+For each: create a kebab-case .tpl.md next to the source, use {{placeholders}}, optional frontmatter, shared content via relative includes like {{> ../shared/base-persona}}.
 
 After saving, the watcher should update the sibling `*.tpl.gen.ts` file and manifest.
 

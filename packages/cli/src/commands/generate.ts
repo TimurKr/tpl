@@ -29,6 +29,15 @@ export async function runGenerate(options: {
     const result = await generate(generateOptions);
     const rel = path.relative(projectRoot, result.outputFile);
     process.stdout.write(`✓ Generated ${result.count} prompt(s) → ${rel}\n`);
+    if (result.issues.length > 0) {
+      process.stderr.write(`Generated prompts contain errors:\n`);
+      for (const issue of result.issues) {
+        process.stderr.write(
+          `  ${issue.kind.padEnd(14)} ${path.relative(projectRoot, issue.filePath)}\n`,
+        );
+      }
+      process.exit(1);
+    }
   } catch (err) {
     process.stderr.write(
       `Error: ${err instanceof Error ? err.message : String(err)}\n`,

@@ -69,6 +69,7 @@ describe("readConfig", () => {
       output: "generated/tpl.ts",
       typesOutput: "generated/tpl.d.ts",
       pattern: "prompts/**/*.tpl.md",
+      namespaceAliases: { "src/app": "", _prompts: "" },
     };
     writeFileSync(
       join(tempDir, "package.json"),
@@ -102,6 +103,7 @@ describe("buildOptions", () => {
     expect(opts.typesOutputFile).toBe("/project/lib/tpl.d.ts");
     expect(opts.pattern).toBe("**/*.tpl.{md,mdx,txt,html}");
     expect(opts.ignore).toEqual([]);
+    expect(opts.namespaceAliases).toEqual({});
   });
 
   it("uses custom output from config", () => {
@@ -127,5 +129,15 @@ describe("buildOptions", () => {
   it("uses custom ignore from config", () => {
     const opts = buildOptions("/project", { ignore: ["vendor/**"] });
     expect(opts.ignore).toEqual(["vendor/**"]);
+  });
+
+  it("uses custom namespaceAliases from config", () => {
+    const opts = buildOptions("/project", {
+      namespaceAliases: { "src/app": "", _prompts: "" },
+    });
+    expect(opts.namespaceAliases).toEqual({
+      "src/app": "",
+      _prompts: "",
+    });
   });
 });

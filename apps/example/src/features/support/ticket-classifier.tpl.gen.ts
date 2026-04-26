@@ -6,7 +6,7 @@
 //   {{var:type}}          typed: string | number | boolean | string[]
 //   {{var|default}}       optional — uses default when omitted
 //   {{#if var}}...{{/if}} conditional block — condition-only vars are optional booleans
-//   {{> name}}            partial — vars-less partials auto-render; vars partials become nested interface fields
+//   {{> ./path}}          relative partial — vars-less partials auto-render; vars partials become nested interface fields
 // Docs: https://github.com/timurkr/tpl
 
 import { renderTemplate } from "the-prompting-library/runtime";
@@ -16,11 +16,11 @@ import TEMPLATE from "./ticket-classifier.tpl.md" with { type: "text" };
  * Support ticket classifier
  * @source src/features/support/ticket-classifier.tpl.md
  */
-export interface TicketClassifierVariables {
+export interface SupportTicketClassifierVariables {
   ticketContent: string;
   customerPlan: string;
 }
 
-export function buildTicketClassifierPrompt(vars: TicketClassifierVariables): string {
+export function buildSupportTicketClassifierPrompt(vars: SupportTicketClassifierVariables): string {
   return renderTemplate(TEMPLATE, vars);
 }

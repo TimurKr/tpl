@@ -99,6 +99,15 @@ describe("renderTemplate", () => {
     expect(result).toBe("Hi Alice, email: alice@example.com");
   });
 
+  it("resolves partial aliases", () => {
+    const result = renderTemplate(
+      "Hello\n{{> ./shared/footer as footer}}",
+      {},
+      { footer: "Footer text" },
+    );
+    expect(result).toBe("Hello\nFooter text");
+  });
+
   it("renders string[] by joining with comma", () => {
     expect(
       renderTemplate("Tags: {{tags:string[]}}", { tags: ["a", "b", "c"] }),

@@ -7,10 +7,11 @@
  *   {{var|default}}      — optional with default value
  *   {{var:type|default}} — typed optional with default
  *   {{#if var}}...{{/if}} — conditional block (renders when var is truthy)
- *   {{> partial}}        — resolved at runtime using the partials map
+ *   {{> ./partial}}      — resolved at runtime using the partials map
+ *   {{> ./partial as x}} — resolved using alias key "x"
  */
 
-import { INCLUDE_RE } from "./patterns.js";
+import { INCLUDE_RE, parseIncludeExpression } from "./patterns.js";
 
 /**
  * Strip YAML frontmatter from a raw .tpl.md file string.
@@ -25,16 +26,7 @@ function stripFrontmatter(content: string): string {
 }
 
 /**
- * Convert an include reference to its camelCase function name.
- * Handles "base-persona", "basePersona", and "src/shared/base-persona" equally.
- */
-function refToFunctionName(ref: string): string {
-  const stem = ref.split("/").pop() ?? ref;
-  return stem.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
-}
-
-/**
- * Recursively resolve {{> name}} include directives using the provided partials map.
+ * Recursively resolve {{> ./path}} include directives using the provided partials map.
  * Circular references are silently dropped (they are caught at codegen time and
  * produce TypeScript errors in the generated file).
  */
@@ -45,12 +37,12 @@ function resolvePartials(
 ): string {
   INCLUDE_RE.lastIndex = 0;
   return content.replace(INCLUDE_RE, (match, rawName: string) => {
-    const ref = rawName.trim();
-    const fnName = refToFunctionName(ref);
-    const partialRaw = partials[fnName];
+    const include = parseIncludeExpression(rawName);
+    const partialKey = include.alias ?? include.path;
+    const partialRaw = partials[partialKey];
     if (!partialRaw) return match; // leave unreplaced if not in partials map
-    if (visited.has(fnName)) return ""; // circular — skip
-    const nextVisited = new Set([...visited, fnName]);
+    if (visited.has(partialKey)) return ""; // circular — skip
+    const nextVisited = new Set([...visited, partialKey]);
     const stripped = stripFrontmatter(partialRaw);
     return resolvePartials(stripped, partials, nextVisited).trim();
   });
@@ -79,8 +71,8 @@ export function flattenVars(vars: object): Record<string, unknown> {
  * `content` is the raw source of a `.tpl.md` file — frontmatter is stripped
  * automatically, so you can pass the result of `import raw from "*.tpl.md"` directly.
  *
- * `partials` is an optional map of `{ functionName: rawFileContent }` used to
- * resolve `{{> name}}` includes at runtime. Pass the raw source strings of the
+ * `partials` is an optional map of `{ includePathOrAlias: rawFileContent }` used to
+ * resolve `{{> ./path}}` includes at runtime. Pass the raw source strings of the
  * included partial files (frontmatter still present — it will be stripped).
  *
  * Vars from nested partial objects are automatically flattened before substitution.

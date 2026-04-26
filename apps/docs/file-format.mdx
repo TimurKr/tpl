@@ -46,15 +46,17 @@ Variables that appear only inside `{{#if}}` blocks are typed as optional boolean
 
 ## Includes
 
-Use `{{> name}}` to include another prompt by name:
+Use `{{> ./path}}` to include another prompt by relative path:
 
 ```markdown
-{{> basePersona}}
+{{> ../../shared/base-persona}}
+{{> ../../shared/output-format as output}}
 
 Now do the actual task using {{userInput}}.
 ```
 
-- References resolve by **name** (camelCase or kebab-case), no path required
+- References resolve relative to the template file that contains the include
+- `as output` sets the local nested variable name for that include only
 - Circular includes are detected — they produce a TypeScript error in the generated file rather than halting generation entirely
 
 ## Frontmatter

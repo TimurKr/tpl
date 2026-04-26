@@ -9,16 +9,23 @@ export interface VariableDef {
   defaultValue?: string;
 }
 
+export interface IncludeDef {
+  path: string;
+  alias?: string;
+}
+
 export interface ParsedTemplate {
   filePath: string;
   /** Exact basename before .tpl.<ext>, preserved for generated filenames. */
   sourceStem: string;
-  /** camelCase base name derived from the filename, e.g. "welcomeEmail" */
+  /** camelCase generated name, derived from the rewritten template path */
   functionName: string;
+  /** Nested prompt object path, e.g. ["features", "auth", "welcomeEmail"]. */
+  promptPath: string[];
   description?: string;
   /** Own variables declared in this template (not inherited from partials) */
   variables: VariableDef[];
-  includes: string[];
+  includes: IncludeDef[];
   rawContent: string;
 }
 
@@ -30,6 +37,7 @@ export interface GenerateOptions {
   typesOutputFile?: string;
   pattern?: string;
   ignore?: string[];
+  namespaceAliases?: Record<string, string>;
 }
 
 export interface TplConfig {
@@ -39,9 +47,24 @@ export interface TplConfig {
   typesOutput?: string;
   pattern?: string;
   ignore?: string[];
+  namespaceAliases?: Record<string, string>;
 }
 
 export type CheckIssueKind = "missing" | "changed" | "stale";
+
+export type GenerateIssueKind = "name-collision" | "include-error";
+
+export interface GenerateIssue {
+  kind: GenerateIssueKind;
+  filePath: string;
+}
+
+export interface GenerateResult {
+  outputFile: string;
+  count: number;
+  templates: ParsedTemplate[];
+  issues: GenerateIssue[];
+}
 
 export interface CheckIssue {
   kind: CheckIssueKind;

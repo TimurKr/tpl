@@ -11,46 +11,65 @@ export * from "../src/shared/assistant.tpl.gen.js";
 export * from "../src/shared/base-persona.tpl.gen.js";
 export * from "../src/shared/output-format.tpl.gen.js";
 
-import { buildPasswordResetPrompt } from "../src/features/auth/password-reset.tpl.gen.js";
-import { buildWelcomeEmailPrompt } from "../src/features/auth/welcome-email.tpl.gen.js";
-import { buildSearchQueryPrompt } from "../src/features/search/search-query.tpl.gen.js";
-import { buildTicketClassifierPrompt } from "../src/features/support/ticket-classifier.tpl.gen.js";
-import { buildTicketSummaryPrompt } from "../src/features/support/ticket-summary.tpl.gen.js";
-import { buildAssistantPrompt } from "../src/shared/assistant.tpl.gen.js";
-import { buildBasePersonaPrompt } from "../src/shared/base-persona.tpl.gen.js";
-import { buildOutputFormatPrompt } from "../src/shared/output-format.tpl.gen.js";
+import { buildAuthPasswordResetPrompt } from "../src/features/auth/password-reset.tpl.gen.js";
+import { buildAuthWelcomeEmailPrompt } from "../src/features/auth/welcome-email.tpl.gen.js";
+import { buildSearchSearchQueryPrompt } from "../src/features/search/search-query.tpl.gen.js";
+import { buildSupportTicketClassifierPrompt } from "../src/features/support/ticket-classifier.tpl.gen.js";
+import { buildSupportTicketSummaryPrompt } from "../src/features/support/ticket-summary.tpl.gen.js";
+import { buildSharedAssistantPrompt } from "../src/shared/assistant.tpl.gen.js";
+import { buildSharedBasePersonaPrompt } from "../src/shared/base-persona.tpl.gen.js";
+import { buildSharedOutputFormatPrompt } from "../src/shared/output-format.tpl.gen.js";
 
 /**
- * All prompt builder functions, keyed by their short name.
+ * All prompt builder functions, nested by template path.
  *
  * @example
  * import { prompts } from "./lib/tpl.gen.js";
- * const text = prompts.summarize({ topic: "AI", wordCount: "50" });
+ * const text = prompts.blog.post.summarize({ topic: "AI" });
  */
 export const prompts = {
-  passwordReset: buildPasswordResetPrompt,
-  welcomeEmail: buildWelcomeEmailPrompt,
-  searchQuery: buildSearchQueryPrompt,
-  ticketClassifier: buildTicketClassifierPrompt,
-  ticketSummary: buildTicketSummaryPrompt,
-  assistant: buildAssistantPrompt,
-  basePersona: buildBasePersonaPrompt,
-  outputFormat: buildOutputFormatPrompt,
+  auth: {
+    passwordReset: buildAuthPasswordResetPrompt,
+    welcomeEmail: buildAuthWelcomeEmailPrompt,
+  },
+  search: {
+    searchQuery: buildSearchSearchQueryPrompt,
+  },
+  support: {
+    ticketClassifier: buildSupportTicketClassifierPrompt,
+    ticketSummary: buildSupportTicketSummaryPrompt,
+  },
+  shared: {
+    assistant: buildSharedAssistantPrompt,
+    basePersona: buildSharedBasePersonaPrompt,
+    outputFormat: buildSharedOutputFormatPrompt,
+  },
 } as const;
 
-type PromptName = keyof typeof prompts;
-type PromptArgs<Name extends PromptName> = Parameters<(typeof prompts)[Name]>;
+export const promptMap = {
+  "auth.passwordReset": buildAuthPasswordResetPrompt,
+  "auth.welcomeEmail": buildAuthWelcomeEmailPrompt,
+  "search.searchQuery": buildSearchSearchQueryPrompt,
+  "support.ticketClassifier": buildSupportTicketClassifierPrompt,
+  "support.ticketSummary": buildSupportTicketSummaryPrompt,
+  "shared.assistant": buildSharedAssistantPrompt,
+  "shared.basePersona": buildSharedBasePersonaPrompt,
+  "shared.outputFormat": buildSharedOutputFormatPrompt,
+} as const;
+
+type PromptName = keyof typeof promptMap;
+type PromptArgs<Name extends PromptName> = Parameters<(typeof promptMap)[Name]>;
 
 /**
  * Render any prompt by name at runtime.
  * Useful when the template name comes from config or user input.
  *
  * @example
- * renderPrompt("summarize", { topic: "AI", wordCount: "50" });
+ * renderPrompt("blog.post.summarize", { topic: "AI" });
  */
 export function renderPrompt<Name extends PromptName>(
   name: Name,
   ...args: PromptArgs<Name>
 ): string {
-  return (prompts[name] as (...args: PromptArgs<Name>) => string)(...args);
+  return (promptMap[name] as (...args: PromptArgs<Name>) => string)(...args);
 }

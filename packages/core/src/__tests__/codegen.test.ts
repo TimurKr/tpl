@@ -1,6 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import { generateFiles } from "../codegen.js";
-import type { GenerateOptions, ParsedTemplate, VariableDef } from "../types.js";
+import { parseIncludeExpression } from "../patterns.js";
+import type {
+  GenerateOptions,
+  IncludeDef,
+  ParsedTemplate,
+  VariableDef,
+} from "../types.js";
 
 const opts: GenerateOptions = {
   rootDir: "/project",
@@ -27,17 +33,23 @@ function varDef(
 }
 
 function makeTemplate(
-  overrides: Partial<ParsedTemplate> & { functionName: string },
+  overrides: Partial<Omit<ParsedTemplate, "includes">> & {
+    functionName: string;
+    includes?: Array<string | IncludeDef>;
+  },
 ): ParsedTemplate {
   const filePath =
     overrides.filePath ?? `/project/${overrides.functionName}.tpl.md`;
   return {
     filePath,
     sourceStem: sourceStem(filePath),
+    promptPath: [overrides.functionName],
     variables: [],
-    includes: [],
     rawContent: "",
     ...overrides,
+    includes: (overrides.includes ?? []).map((include) =>
+      typeof include === "string" ? parseIncludeExpression(include) : include,
+    ),
   };
 }
 
@@ -301,15 +313,15 @@ describe("generateFiles", () => {
     const self = makeTemplate({
       functionName: "selfRef",
       filePath: "/project/selfRef.tpl.md",
-      rawContent: "{{> selfRef}}",
-      includes: ["selfRef"],
+      rawContent: "{{> ./selfRef}}",
+      includes: ["./selfRef"],
     });
     const map = makeMap([self]);
     // Must NOT throw — generation continues for other prompts
     const files = generateFiles([self], map, opts);
     const file = files.get(generatedPath(self))!;
     expect(file).toBeDefined();
-    expect(file).toContain("CIRCULAR INCLUDE DETECTED");
+    expect(file).toContain("TEMPLATE INCLUDE ERROR");
     expect(file).toContain("@ts-expect-error");
     // The function is still exported so other code can reference it (TypeScript will error on the directive)
     expect(file).toContain("export function buildSelfRefPrompt");
@@ -324,34 +336,53 @@ describe("generateFiles", () => {
     expect(index).toContain(`export * from "../bar.tpl.gen.js"`);
   });
 
-  it("index imports build functions and defines prompts const with short keys", () => {
-    const a = makeTemplate({ functionName: "foo", rawContent: "Foo" });
-    const b = makeTemplate({ functionName: "bar", rawContent: "Bar" });
+  it("index imports build functions and defines nested prompts const", () => {
+    const a = makeTemplate({
+      functionName: "featuresAuthWelcomeEmail",
+      promptPath: ["features", "auth", "welcomeEmail"],
+      filePath: "/project/src/features/auth/welcome-email.tpl.md",
+      rawContent: "Foo",
+    });
+    const b = makeTemplate({
+      functionName: "sharedBasePersona",
+      promptPath: ["shared", "basePersona"],
+      filePath: "/project/src/shared/base-persona.tpl.md",
+      rawContent: "Bar",
+    });
     const files = generateFiles([a, b], makeMap([a, b]), opts);
     const index = files.get(opts.outputFile)!;
     expect(index).toContain(
-      `import { buildFooPrompt } from "../foo.tpl.gen.js"`,
+      `import { buildFeaturesAuthWelcomeEmailPrompt } from "../src/features/auth/welcome-email.tpl.gen.js"`,
     );
     expect(index).toContain(
-      `import { buildBarPrompt } from "../bar.tpl.gen.js"`,
+      `import { buildSharedBasePersonaPrompt } from "../src/shared/base-persona.tpl.gen.js"`,
     );
     expect(index).toContain("export const prompts = {");
-    expect(index).toContain("  foo: buildFooPrompt,");
-    expect(index).toContain("  bar: buildBarPrompt,");
+    expect(index).toContain("features: {");
+    expect(index).toContain("auth: {");
+    expect(index).toContain(
+      "welcomeEmail: buildFeaturesAuthWelcomeEmailPrompt",
+    );
+    expect(index).toContain("shared: {");
+    expect(index).toContain("basePersona: buildSharedBasePersonaPrompt");
+    expect(index).toContain(
+      `"features.auth.welcomeEmail": buildFeaturesAuthWelcomeEmailPrompt`,
+    );
   });
 
   it("index exports renderPrompt function", () => {
     const t = makeTemplate({ functionName: "greet", rawContent: "Hello" });
     const files = generateFiles([t], makeMap([t]), opts);
     const index = files.get(opts.outputFile)!;
-    expect(index).toContain("type PromptName = keyof typeof prompts");
+    expect(index).toContain("type PromptName = keyof typeof promptMap");
     expect(index).toContain(
-      "type PromptArgs<Name extends PromptName> = Parameters<(typeof prompts)[Name]>",
+      "type PromptArgs<Name extends PromptName> = Parameters<(typeof promptMap)[Name]>",
     );
     expect(index).toContain(
       "export function renderPrompt<Name extends PromptName>(",
     );
     expect(index).toContain("...args: PromptArgs<Name>");
+    expect(index).toContain("promptMap[name]");
   });
 
   it("includes description in JSDoc when present", () => {
@@ -387,8 +418,8 @@ describe("generateFiles", () => {
     const parent = makeTemplate({
       functionName: "welcome",
       variables: [varDef("userName")],
-      includes: ["shared/footer"],
-      rawContent: "Hi {{userName}}\n{{> shared/footer}}",
+      includes: ["./shared/footer"],
+      rawContent: "Hi {{userName}}\n{{> ./shared/footer}}",
     });
     const map = makeMap([partial, parent]);
     const files = generateFiles([partial, parent], map, opts);
@@ -404,7 +435,31 @@ describe("generateFiles", () => {
     expect(welcomeFile).toContain("  footer: FooterVariables;");
     expect(welcomeFile).toContain("  userName: string;");
     // Called with vars.footer
-    expect(welcomeFile).toContain("footer: buildFooterPrompt(vars.footer)");
+    expect(welcomeFile).toContain(
+      `"./shared/footer": buildFooterPrompt(vars.footer)`,
+    );
+  });
+
+  it("partial alias controls the nested field name", () => {
+    const partial = makeTemplate({
+      functionName: "sharedFooter",
+      filePath: "/project/shared/footer.tpl.md",
+      variables: [varDef("email")],
+      rawContent: "Contact: {{email}}",
+    });
+    const parent = makeTemplate({
+      functionName: "welcome",
+      variables: [varDef("userName")],
+      includes: ["./shared/footer as footer"],
+      rawContent: "Hi {{userName}}\n{{> ./shared/footer as footer}}",
+    });
+    const map = makeMap([partial, parent]);
+    const files = generateFiles([partial, parent], map, opts);
+    const welcomeFile = files.get(generatedPath(parent))!;
+    expect(welcomeFile).toContain("  footer: SharedFooterVariables;");
+    expect(welcomeFile).toContain(
+      `"footer": buildSharedFooterPrompt(vars.footer)`,
+    );
   });
 
   it("partial without variables: auto-rendered, not exposed in parent interface", () => {
@@ -417,8 +472,8 @@ describe("generateFiles", () => {
     const parent = makeTemplate({
       functionName: "welcome",
       variables: [varDef("userName")],
-      includes: ["shared/static-header"],
-      rawContent: "{{> shared/static-header}}\nHi {{userName}}",
+      includes: ["./shared/static-header"],
+      rawContent: "{{> ./shared/static-header}}\nHi {{userName}}",
     });
     const map = makeMap([partial, parent]);
     const files = generateFiles([partial, parent], map, opts);
@@ -430,7 +485,9 @@ describe("generateFiles", () => {
     // NOT in the interface (not a field the caller provides)
     expect(welcomeFile).not.toContain("StaticHeaderVariables");
     // IS in the renderTemplate partials call (auto-rendered internally)
-    expect(welcomeFile).toContain("staticHeader: buildStaticHeaderPrompt()");
+    expect(welcomeFile).toContain(
+      `"./shared/static-header": buildStaticHeaderPrompt()`,
+    );
     // Interface only has own vars
     expect(welcomeFile).toContain("  userName: string;");
   });
@@ -452,8 +509,8 @@ describe("generateFiles", () => {
     const selfRef = makeTemplate({
       functionName: "greet",
       filePath: "/project/src/a/greet.tpl.md",
-      includes: ["greet"],
-      rawContent: "{{> greet}}",
+      includes: ["./greet"],
+      rawContent: "{{> ./greet}}",
     });
     const other = makeTemplate({
       functionName: "greet",
@@ -481,8 +538,8 @@ describe("generateFiles", () => {
     const parent = makeTemplate({
       functionName: "welcome",
       variables: [varDef("userName")],
-      includes: ["shared/footer"],
-      rawContent: "Hi {{userName}}\n{{> shared/footer}}",
+      includes: ["./shared/footer"],
+      rawContent: "Hi {{userName}}\n{{> ./shared/footer}}",
     });
     const map = makeMap([partial, parent]);
     const files = generateFiles([partial, parent], map, opts);

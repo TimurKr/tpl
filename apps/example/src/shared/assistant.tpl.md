@@ -2,8 +2,8 @@
 description: Full assistant persona with configurable tone and output format
 ---
 
-{{> basePersona}}
+{{> ./base-persona as persona}}
 
-{{> outputFormat}}
+{{> ./output-format as output}}
 
 Always communicate in a {{tone|professional}} manner.

@@ -6,23 +6,23 @@
 //   {{var:type}}          typed: string | number | boolean | string[]
 //   {{var|default}}       optional — uses default when omitted
 //   {{#if var}}...{{/if}} conditional block — condition-only vars are optional booleans
-//   {{> name}}            partial — vars-less partials auto-render; vars partials become nested interface fields
+//   {{> ./path}}          relative partial — vars-less partials auto-render; vars partials become nested interface fields
 // Docs: https://github.com/timurkr/tpl
 
 import { renderTemplate } from "the-prompting-library/runtime";
 import TEMPLATE from "./welcome-email.tpl.md" with { type: "text" };
-import { buildBasePersonaPrompt } from "../../shared/base-persona.tpl.gen.js";
+import { buildSharedBasePersonaPrompt } from "../../shared/base-persona.tpl.gen.js";
 
 /**
  * Welcome email for new users
  * @source src/features/auth/welcome-email.tpl.md
  */
-export interface WelcomeEmailVariables {
+export interface AuthWelcomeEmailVariables {
   userName: string;
   productName: string;
   planType: string;
 }
 
-export function buildWelcomeEmailPrompt(vars: WelcomeEmailVariables): string {
-  return renderTemplate(TEMPLATE, vars, { basePersona: buildBasePersonaPrompt() });
+export function buildAuthWelcomeEmailPrompt(vars: AuthWelcomeEmailVariables): string {
+  return renderTemplate(TEMPLATE, vars, { "persona": buildSharedBasePersonaPrompt() });
 }

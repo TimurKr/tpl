@@ -1,6 +1,6 @@
 import { dirname, join, relative } from "node:path";
 import { findTemplate, hasEffectiveVariables } from "./resolver.js";
-import type { GenerateOptions, ParsedTemplate } from "./types.js";
+import type { GenerateOptions, IncludeDef, ParsedTemplate } from "./types.js";
 
 function toPascalCase(name: string): string {
   return name.charAt(0).toUpperCase() + name.slice(1);
@@ -67,10 +67,13 @@ function referenceDirective(fromFile: string, typesFile: string): string {
  *   function is called automatically with no arguments.
  */
 interface PartialInfo {
+  include: IncludeDef;
   partial: ParsedTemplate;
   hasEffectiveVars: boolean;
   buildFnName: string; // e.g. "buildBasePersonaPrompt"
   pascalName: string; // e.g. "BasePersona"
+  varsKey: string;
+  partialsKey: string;
 }
 
 function collectDirectPartialInfos(
@@ -78,24 +81,27 @@ function collectDirectPartialInfos(
   allTemplates: Map<string, ParsedTemplate>,
 ): PartialInfo[] {
   const infos: PartialInfo[] = [];
-  for (const includeName of template.includes) {
-    const partial = findTemplate(allTemplates, includeName);
+  for (const include of template.includes) {
+    const partial = findTemplate(allTemplates, include, template);
     if (!partial) {
       throw new Error(
-        `Include '{{> ${includeName}}}' in '${template.filePath}' could not be resolved.`,
+        `Include '{{> ${include.path}}}' in '${template.filePath}' could not be resolved.`,
       );
     }
     // Detect direct self-reference (deeper cycles are caught by hasEffectiveVariables)
     if (partial.functionName === template.functionName) {
       throw new Error(
-        `Circular include detected: '${includeName}' is already in the resolution chain [${template.functionName} → ${partial.functionName}]`,
+        `Circular include detected: '${include.path}' is already in the resolution chain [${template.functionName} → ${partial.functionName}]`,
       );
     }
     infos.push({
+      include,
       partial,
       hasEffectiveVars: hasEffectiveVariables(partial, allTemplates),
       buildFnName: buildFunctionName(partial.functionName),
       pascalName: toPascalCase(partial.functionName),
+      varsKey: include.alias ?? partial.functionName,
+      partialsKey: include.alias ?? include.path,
     });
   }
   return infos;
@@ -145,11 +151,11 @@ function generateSinglePromptFile(
       `// Source: ${relSource}`,
       ...syntaxCommentLines(),
       ``,
-      `// ⚠️  CIRCULAR INCLUDE DETECTED`,
+      `// ⚠️  TEMPLATE INCLUDE ERROR`,
       `// ${msg}`,
-      `// Fix the circular {{> ...}} reference in your template, then re-run tpl generate.`,
+      `// Fix the {{> ...}} reference in your template, then re-run tpl generate.`,
       ``,
-      `// @ts-expect-error ⚠️ circular include — the line below is intentionally valid so this directive errors`,
+      `// @ts-expect-error ⚠️ template include error — the line below is intentionally valid so this directive errors`,
       `export function ${buildFnName}(): string { return ""; }`,
       ``,
     ].join("\n");
@@ -181,16 +187,15 @@ function generateSinglePromptFile(
 
   // Interface fields from exposed partials
   const partialFields = exposedPartials.map(
-    ({ partial, pascalName: pn }) =>
-      `  ${partial.functionName}: ${pn}Variables;`,
+    ({ varsKey, pascalName: pn }) => `  ${varsKey}: ${pn}Variables;`,
   );
 
   // Partials map entries for the renderTemplate call
   const partialsEntries = partialInfos.map(
-    ({ partial, buildFnName: bfn, hasEffectiveVars }) =>
+    ({ buildFnName: bfn, hasEffectiveVars, varsKey, partialsKey }) =>
       hasEffectiveVars
-        ? `${partial.functionName}: ${bfn}(vars.${partial.functionName})`
-        : `${partial.functionName}: ${bfn}()`,
+        ? `${JSON.stringify(partialsKey)}: ${bfn}(vars.${varsKey})`
+        : `${JSON.stringify(partialsKey)}: ${bfn}()`,
   );
   const partialsArg =
     partialsEntries.length > 0 ? `{ ${partialsEntries.join(", ")} }` : null;
@@ -362,9 +367,41 @@ function syntaxCommentLines(): string[] {
     `//   {{var:type}}          typed: string | number | boolean | string[]`,
     `//   {{var|default}}       optional — uses default when omitted`,
     `//   {{#if var}}...{{/if}} conditional block — condition-only vars are optional booleans`,
-    `//   {{> name}}            partial — vars-less partials auto-render; vars partials become nested interface fields`,
+    `//   {{> ./path}}          relative partial — vars-less partials auto-render; vars partials become nested interface fields`,
     `// Docs: https://github.com/timurkr/tpl`,
   ];
+}
+
+function buildNestedPrompts(
+  entries: Array<{ promptPath: string[]; buildFnName: string }>,
+): string {
+  const root: Record<string, unknown> = {};
+
+  for (const { promptPath, buildFnName } of entries) {
+    let cursor = root;
+    for (const segment of promptPath.slice(0, -1)) {
+      cursor[segment] ??= {};
+      cursor = cursor[segment] as Record<string, unknown>;
+    }
+    const leaf = promptPath.at(-1);
+    if (leaf) cursor[leaf] = buildFnName;
+  }
+
+  function render(value: unknown, indent = 0): string {
+    if (typeof value === "string") return value;
+    const pad = " ".repeat(indent);
+    const childPad = " ".repeat(indent + 2);
+    const lines = ["{"];
+    for (const [key, child] of Object.entries(
+      value as Record<string, unknown>,
+    )) {
+      lines.push(`${childPad}${key}: ${render(child, indent + 2)},`);
+    }
+    lines.push(`${pad}}`);
+    return lines.join("\n");
+  }
+
+  return render(root);
 }
 
 /** Generate the barrel file that re-exports all prompts and defines the prompts object. */
@@ -401,26 +438,33 @@ function generateIndexFile(
     );
   }
 
+  const promptEntries = groups.map(({ name, template }) => ({
+    dotName: template.promptPath.join("."),
+    buildFnName: buildFunctionName(name),
+    promptPath: template.promptPath,
+  }));
+
   lines.push(``);
   lines.push(`/**`);
-  lines.push(` * All prompt builder functions, keyed by their short name.`);
+  lines.push(` * All prompt builder functions, nested by template path.`);
   lines.push(` *`);
   lines.push(` * @example`);
   lines.push(` * import { prompts } from "./lib/tpl.gen.js";`);
-  lines.push(
-    ` * const text = prompts.summarize({ topic: "AI", wordCount: "50" });`,
-  );
+  lines.push(` * const text = prompts.blog.post.summarize({ topic: "AI" });`);
   lines.push(` */`);
-  lines.push(`export const prompts = {`);
-  for (const { name } of groups) {
-    const buildFnName = buildFunctionName(name);
-    lines.push(`  ${name}: ${buildFnName},`);
+  lines.push(
+    `export const prompts = ${buildNestedPrompts(promptEntries)} as const;`,
+  );
+  lines.push(``);
+  lines.push(`export const promptMap = {`);
+  for (const entry of promptEntries) {
+    lines.push(`  ${JSON.stringify(entry.dotName)}: ${entry.buildFnName},`);
   }
   lines.push(`} as const;`);
   lines.push(``);
-  lines.push(`type PromptName = keyof typeof prompts;`);
+  lines.push(`type PromptName = keyof typeof promptMap;`);
   lines.push(
-    `type PromptArgs<Name extends PromptName> = Parameters<(typeof prompts)[Name]>;`,
+    `type PromptArgs<Name extends PromptName> = Parameters<(typeof promptMap)[Name]>;`,
   );
   lines.push(``);
 
@@ -431,14 +475,14 @@ function generateIndexFile(
   );
   lines.push(` *`);
   lines.push(` * @example`);
-  lines.push(` * renderPrompt("summarize", { topic: "AI", wordCount: "50" });`);
+  lines.push(` * renderPrompt("blog.post.summarize", { topic: "AI" });`);
   lines.push(` */`);
   lines.push(`export function renderPrompt<Name extends PromptName>(`);
   lines.push(`  name: Name,`);
   lines.push(`  ...args: PromptArgs<Name>`);
   lines.push(`): string {`);
   lines.push(
-    `  return (prompts[name] as (...args: PromptArgs<Name>) => string)(...args);`,
+    `  return (promptMap[name] as (...args: PromptArgs<Name>) => string)(...args);`,
   );
   lines.push(`}`);
   lines.push(``);

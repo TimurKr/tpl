@@ -6,24 +6,24 @@
 //   {{var:type}}          typed: string | number | boolean | string[]
 //   {{var|default}}       optional — uses default when omitted
 //   {{#if var}}...{{/if}} conditional block — condition-only vars are optional booleans
-//   {{> name}}            partial — vars-less partials auto-render; vars partials become nested interface fields
+//   {{> ./path}}          relative partial — vars-less partials auto-render; vars partials become nested interface fields
 // Docs: https://github.com/timurkr/tpl
 
 import { renderTemplate } from "the-prompting-library/runtime";
 import TEMPLATE from "./ticket-summary.tpl.md" with { type: "text" };
-import { buildAssistantPrompt } from "../../shared/assistant.tpl.gen.js";
-import type { AssistantVariables } from "../../shared/assistant.tpl.gen.js";
+import { buildSharedAssistantPrompt } from "../../shared/assistant.tpl.gen.js";
+import type { SharedAssistantVariables } from "../../shared/assistant.tpl.gen.js";
 
 /**
  * Summarize a resolved support ticket
  * @source src/features/support/ticket-summary.tpl.md
  */
-export interface TicketSummaryVariables {
+export interface SupportTicketSummaryVariables {
   ticketContent: string;
   resolution: string;
-  assistant: AssistantVariables;
+  assistant: SharedAssistantVariables;
 }
 
-export function buildTicketSummaryPrompt(vars: TicketSummaryVariables): string {
-  return renderTemplate(TEMPLATE, { ticketContent: vars.ticketContent, resolution: vars.resolution }, { assistant: buildAssistantPrompt(vars.assistant) });
+export function buildSupportTicketSummaryPrompt(vars: SupportTicketSummaryVariables): string {
+  return renderTemplate(TEMPLATE, { ticketContent: vars.ticketContent, resolution: vars.resolution }, { "assistant": buildSharedAssistantPrompt(vars.assistant) });
 }

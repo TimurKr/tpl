@@ -8,10 +8,10 @@ Includes let you define reusable prompt snippets — base personas, safety guide
 ## Syntax
 
 ```markdown
-{{> name}}
+{{> ./relative/path}}
 ```
 
-Reference by camelCase or kebab-case name. No path needed.
+References must be relative to the template file that contains the include. Omit the `.tpl.md` extension.
 
 ## Example
 
@@ -20,38 +20,40 @@ You are a helpful, concise, and professional AI assistant.
 ```
 
 ```markdown src/features/email.tpl.md
-{{> basePersona}}
+{{> ../shared/base-persona}}
 
 Write a welcome email to {{userName}}.
 ```
 
 ## Resolution
 
-Includes resolve by **function name** — the camelCase stem derived from the file name. Both forms work:
+Includes resolve by **relative path** from the including file:
 
 ```markdown
-{{> basePersona}}        ← camelCase name
-{{> base-persona}}       ← kebab-case stem
-{{> src/shared/base-persona}}  ← full path (also works, for backward compat)
+{{> ./local-partial}}          ← same folder
+{{> ../shared/base-persona}}   ← parent folder
+{{> ../shared/output-format as output}} ← local variable alias
 ```
 
-Names must be unique across the project. If two files produce the same name, a TypeScript error is generated in the output file.
+Prompt names must still be unique across the project because generated functions are exported by name. If two files produce the same name, a TypeScript error is generated in the output file.
+
+Use an alias when a partial has variables and the default nested field would be too long in the parent interface. The alias only affects that include site. It does not rename the prompt globally.
 
 ## Partial variables
 
 If a partial has its own variables (or configurable variables anywhere in its subtree), they appear as a typed field in the parent's interface:
 
 ```typescript
-// assistant.tpl.md has {{tone|professional}}
-export interface AssistantVariables {
+// src/shared/assistant.tpl.md has {{tone|professional}}
+export interface SharedAssistantVariables {
   tone?: string;
 }
 
-// ticket-summary.tpl.md uses {{> assistant}}
+// ticket-summary.tpl.md uses {{> ../../shared/assistant}}
 export interface TicketSummaryVariables {
   ticketContent: string;
   resolution: string;
-  assistant: AssistantVariables; // ← exposed because assistant has variables
+  sharedAssistant: SharedAssistantVariables; // ← exposed because the partial has variables
 }
 ```
 
@@ -59,7 +61,7 @@ Partials with no variables — and no variables anywhere in their include tree �
 
 ```typescript
 // base-persona.tpl.md has no variables
-// welcome-email.tpl.md uses {{> basePersona}}
+// welcome-email.tpl.md uses {{> ../../shared/base-persona}}
 
 export interface WelcomeEmailVariables {
   userName: string;
@@ -68,7 +70,7 @@ export interface WelcomeEmailVariables {
   // no basePersona field — it's auto-rendered
 }
 
-prompts.welcomeEmail({ userName: "Alice", productName: "Acme AI", planType: "Pro" });
+prompts.features.auth.welcomeEmail({ userName: "Alice", productName: "Acme AI", planType: "Pro" });
 ```
 
 ## Nested includes
@@ -80,12 +82,12 @@ You are professional.
 ```
 
 ```markdown persona.tpl.md
-{{> base}}
+{{> ./base}}
 Always respond in {{language}}.
 ```
 
 ```markdown email.tpl.md
-{{> persona}}
+{{> ./persona}}
 Write to {{userName}}.
 ```
 

@@ -1,11 +1,13 @@
 import { describe, expect, it } from "bun:test";
+import { parseIncludeExpression } from "../patterns.js";
 import { resolveIncludes } from "../resolver.js";
-import type { ParsedTemplate } from "../types.js";
+import type { IncludeDef, ParsedTemplate } from "../types.js";
 
 function makeTemplate(
-  overrides: Partial<ParsedTemplate> & {
+  overrides: Partial<Omit<ParsedTemplate, "includes">> & {
     functionName: string;
     rawContent: string;
+    includes?: Array<string | IncludeDef>;
   },
 ): ParsedTemplate {
   const filePath =
@@ -18,8 +20,10 @@ function makeTemplate(
     filePath,
     sourceStem: base.replace(/\.tpl\.[^.]+$/, ""),
     variables: [],
-    includes: [],
     ...overrides,
+    includes: (overrides.includes ?? []).map((include) =>
+      typeof include === "string" ? parseIncludeExpression(include) : include,
+    ),
   };
 }
 
@@ -41,8 +45,8 @@ describe("resolveIncludes", () => {
     });
     const main = makeTemplate({
       functionName: "main",
-      rawContent: "{{> shared/base}}\nPlease help {{userName}}.",
-      includes: ["shared/base"],
+      rawContent: "{{> ./shared/base}}\nPlease help {{userName}}.",
+      includes: ["./shared/base"],
     });
     const map = new Map([
       ["base", base],
@@ -63,13 +67,13 @@ describe("resolveIncludes", () => {
     const base = makeTemplate({
       functionName: "base",
       filePath: "/project/shared/base.tpl.md",
-      rawContent: "{{> shared/persona}} Be concise.",
-      includes: ["shared/persona"],
+      rawContent: "{{> ./persona}} Be concise.",
+      includes: ["./persona"],
     });
     const main = makeTemplate({
       functionName: "main",
-      rawContent: "{{> shared/base}}\nAnswer: {{answer}}",
-      includes: ["shared/base"],
+      rawContent: "{{> ./shared/base}}\nAnswer: {{answer}}",
+      includes: ["./shared/base"],
     });
     const map = new Map([
       ["persona", persona],
@@ -83,8 +87,8 @@ describe("resolveIncludes", () => {
   it("throws on missing include", () => {
     const main = makeTemplate({
       functionName: "main",
-      rawContent: "{{> nonexistent/thing}}",
-      includes: ["nonexistent/thing"],
+      rawContent: "{{> ./nonexistent/thing}}",
+      includes: ["./nonexistent/thing"],
     });
     const map = new Map([["main", main]]);
     expect(() => resolveIncludes(main, map)).toThrow(/nonexistent\/thing/);
@@ -94,14 +98,14 @@ describe("resolveIncludes", () => {
     const a = makeTemplate({
       functionName: "a",
       filePath: "/project/a.tpl.md",
-      rawContent: "{{> b}}",
-      includes: ["b"],
+      rawContent: "{{> ./b}}",
+      includes: ["./b"],
     });
     const b = makeTemplate({
       functionName: "b",
       filePath: "/project/b.tpl.md",
-      rawContent: "{{> a}}",
-      includes: ["a"],
+      rawContent: "{{> ./a}}",
+      includes: ["./a"],
     });
     const map = new Map([
       ["a", a],
@@ -114,14 +118,14 @@ describe("resolveIncludes", () => {
     const a = makeTemplate({
       functionName: "selfRef",
       filePath: "/project/selfRef.tpl.md",
-      rawContent: "{{> selfRef}}",
-      includes: ["selfRef"],
+      rawContent: "{{> ./selfRef}}",
+      includes: ["./selfRef"],
     });
     const map = new Map([["selfRef", a]]);
     expect(() => resolveIncludes(a, map)).toThrow(/selfRef/);
   });
 
-  it("resolves include by bare camelCase name (name-only reference)", () => {
+  it("throws on bare name includes", () => {
     const base = makeTemplate({
       functionName: "base",
       filePath: "/project/shared/base.tpl.md",
@@ -129,7 +133,6 @@ describe("resolveIncludes", () => {
     });
     const main = makeTemplate({
       functionName: "main",
-      // Note: using bare name "base" instead of "shared/base"
       rawContent: "{{> base}}\nAnswer: {{answer}}",
       includes: ["base"],
     });
@@ -137,11 +140,10 @@ describe("resolveIncludes", () => {
       ["base", base],
       ["main", main],
     ]);
-    const result = resolveIncludes(main, map);
-    expect(result).toBe("You are helpful.\nAnswer: {{answer}}");
+    expect(() => resolveIncludes(main, map)).toThrow(/relative paths/);
   });
 
-  it("resolves include by bare kebab-case name (name-only reference)", () => {
+  it("resolves include by relative parent path", () => {
     const base = makeTemplate({
       functionName: "basePersona",
       filePath: "/project/shared/base-persona.tpl.md",
@@ -149,9 +151,9 @@ describe("resolveIncludes", () => {
     });
     const main = makeTemplate({
       functionName: "main",
-      // Using kebab-case bare name
-      rawContent: "{{> base-persona}}\nHelp with {{topic}}.",
-      includes: ["base-persona"],
+      filePath: "/project/features/auth/main.tpl.md",
+      rawContent: "{{> ../../shared/base-persona}}\nHelp with {{topic}}.",
+      includes: ["../../shared/base-persona"],
     });
     const map = new Map([
       ["basePersona", base],
@@ -165,8 +167,8 @@ describe("resolveIncludes", () => {
     const selfRef = makeTemplate({
       functionName: "selfRef",
       filePath: "/project/selfRef.tpl.md",
-      rawContent: "{{> selfRef}}",
-      includes: ["selfRef"],
+      rawContent: "{{> ./selfRef}}",
+      includes: ["./selfRef"],
     });
     const map = new Map([["selfRef", selfRef]]);
     expect(() => resolveIncludes(selfRef, map)).toThrow(/[Cc]ircular/);
@@ -185,8 +187,8 @@ describe("resolveIncludes", () => {
     });
     const main = makeTemplate({
       functionName: "main",
-      rawContent: "{{> shared/header}}\nBody\n{{> shared/footer}}",
-      includes: ["shared/header", "shared/footer"],
+      rawContent: "{{> ./shared/header}}\nBody\n{{> ./shared/footer}}",
+      includes: ["./shared/header", "./shared/footer"],
     });
     const map = new Map([
       ["header", header],

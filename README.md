@@ -12,14 +12,18 @@ No dashboard. No hosted runtime. No "prompt management platform" with a pricing 
 
 Just files in your repo.
 
+**Alpha:** TPL is pre-1.0. Minor versions may introduce breaking changes while the API and file format settle.
+
 ```markdown
-<!-- base-persona.tpl.md -->
-You are a helpful, concise assistant. Respond professionally.
+<!-- src/shared/base-persona.tpl.md -->
+You are a helpful, concise assistant. Respond in a {{tone|professional}} tone.
+<!-- Inline variables with {{ ... }}. Here, `tone` defaults to "professional". -->
 ```
 
 ```markdown
-<!-- welcome-email.tpl.md -->
-{{> basePersona}}
+<!-- src/features/auth/welcome-email.tpl.md -->
+{{> ../../shared/base-persona as persona}}
+<!-- Reuse another template with {{> ... }}. "as persona" will be a helpful alias later. -->
 
 Write a warm welcome email to {{userName}} who just signed up for {{productName}}.
 Their plan is {{planType}}. Keep it under 150 words.
@@ -31,11 +35,14 @@ import { prompts } from "./lib/tpl.gen.js";
 
 const { text } = await generateText({
   model,
-  prompt: prompts.welcomeEmail({
+  prompt: prompts.features.auth.welcomeEmail({
     // autocomplete works here
     userName: "Alice",
     productName: "Acme AI",
     planType: "Pro",
+    persona: { // Args for nested template goes here. Customize the name with "as alias".
+      tone: "friendly",
+    },
     // missing field? wrong name? wrong type? TypeScript yells before prod does.
   }),
 });
@@ -96,7 +103,8 @@ Important syntax:
 - `{{tone|friendly}}` becomes an optional string with a default.
 - `{{limit:number|10}}` becomes an optional number with a default.
 - `{{#if note}}...{{/if}}` renders only when `note` is truthy.
-- `{{> basePersona}}` includes another template.
+- `{{> ../../shared/base-persona}}` includes another template by relative path.
+- `{{> ../../shared/output-format as output}}` includes another template and exposes its variables under `output`.
 
 Implementation steps:
 
@@ -164,25 +172,25 @@ Implementation steps:
 8. Extract shared prompt text.
    - Move repeated persona, safety rules, response style, and output format text into partial templates.
    - Example: `src/prompts/base-persona.tpl.md`
-   - Include with `{{> basePersona}}`.
+   - Include with a relative path like `{{> ../prompts/base-persona}}`.
    - Partials without variables are rendered automatically.
    - Partials with variables become nested typed fields.
-   - Prefer `{{> partialName}}` whenever one prompt includes another prompt. Do not render one prompt in TypeScript just to pass its string into another prompt.
+   - Prefer `{{> ./relative-path}}` whenever one prompt includes another prompt. Do not render one prompt in TypeScript just to pass its string into another prompt.
    - Passing rendered prompt strings as variables is only acceptable for truly dynamic repeated collections, such as a list of N retrieved documents or N tool descriptions assembled at runtime.
 
 9. Create a top-level prompt template when assembling a large prompt.
    - If the original code had one big `systemPrompt` or prompt assembler, create a top-level `.tpl.md` file for that final prompt.
    - Put the final order, section headings, separators, and section inclusion rules in that top-level template.
-   - Use partials for sections that are themselves templates: `{{> basePersona}}`, `{{> safetyRules}}`, `{{> outputFormat}}`.
+   - Use partials for sections that are themselves templates: `{{> ./base-persona}}`, `{{> ./safety-rules}}`, `{{> ./output-format}}`.
    - Use variables only for raw data that TypeScript computed or loaded: `{{userName}}`, `{{workspaceTree}}`, `{{retrievedDocumentSections}}`, `{{availableToolSections}}`.
    - Bad top-level template:
      {{agentRuntime}}
      {{rules}}
      {{workspace}}
    - Good top-level template:
-     {{> agentRuntime}}
-     {{> rules}}
-     {{> workspace}}
+     {{> ./agent-runtime}}
+     {{> ./rules}}
+     {{> ./workspace}}
    - Bad TypeScript:
      prompts.systemPrompt({
        agentRuntime: prompts.agentRuntime({ workspaceDir }),
@@ -225,7 +233,7 @@ Implementation steps:
 
      const { text } = await generateText({
        model,
-       prompt: prompts.welcomeEmail({
+      prompt: prompts.features.email.welcomeEmail({
          userName: user.name,
          planType: plan,
        }),
@@ -235,11 +243,11 @@ Implementation steps:
 
    Bad:
      function buildWelcomeEmailPrompt(...args): string {
-       return prompts.welcomeEmail(...args);
+       return prompts.features.email.welcomeEmail(...args);
      }
 
    Better:
-     const prompt = prompts.welcomeEmail(...args);
+     const prompt = prompts.features.email.welcomeEmail(...args);
 
    Keep a wrapper only when it preserves a public API, adds real logic, validates input, or is needed for compatibility. Otherwise update callers to use the generated prompt function directly.
 
@@ -249,7 +257,7 @@ Implementation steps:
    - Run the repo's tests if they exist.
    - Fix any generated TypeScript errors by correcting template variables, duplicate names, or broken includes.
    - Review the diff for under-extraction. If prompt wording, headings, descriptions, separators, truncation notes, or conditional prose are still authored in TypeScript, move them into templates.
-   - Review the diff for manual prompt composition. If TypeScript calls `prompts.foo()` only to pass that string into `prompts.bar({ foo })`, replace that variable slot with `{{> foo}}` and pass only `foo`'s data as nested variables.
+   - Review the diff for manual prompt composition. If TypeScript calls `prompts.foo()` only to pass that string into `prompts.bar({ foo })`, replace that variable slot with a relative include like `{{> ./foo}}` and pass only `foo`'s data as nested variables.
    - Review the diff for over-extraction. If a `.tpl.md` file is only a non-prompt utility string, move it back to TypeScript.
    - Review the diff for over-abstraction. If a `.tpl.md` file is one line, used only once, or not a coherent functional unit, fold it back into its parent template.
    - Search for wrapper-only functions and remove them unless they have a real reason to exist.
@@ -344,7 +352,7 @@ lib/tpl.d.ts
 ```typescript
 import { prompts } from "./lib/tpl.gen.js";
 
-const prompt = prompts.welcomeEmail({
+const prompt = prompts.features.auth.welcomeEmail({
   userName: "Alice",
   productName: "Acme AI",
 });
@@ -367,19 +375,22 @@ TPL works best when Markdown owns the prompt and TypeScript owns the data.
 Good practice:
 
 - Put model-facing wording in `.tpl.md`: headings, instructions, separators, fallback text, truncation notes, and conditional prose.
-- Use `{{> partialName}}` when one prompt includes another prompt.
+- Use `{{> ./relative-path}}` when one prompt includes another prompt.
 - Pass raw data into prompts, not already-rendered prompt strings.
 - Keep TypeScript focused on loading files, counting things, reading config, and passing values into generated functions.
 - Use the exported `*Variables` interfaces when typing helper boundaries. TPL already exports argument interfaces, so you should not need `Parameters<typeof prompts.somePrompt>[0]`.
+- Let the file path define the generated prompt path. Use `namespaceAliases` when framework folders make the generated API noisy.
+- Use `as alias` on an include when the default nested variable key would be too long for the parent prompt.
 - Create a subprompt only when it is reused meaningfully or is one coherent functional unit with a clear name.
 
 Bad practice:
 
 - Do not build prompt prose with string concatenation in TypeScript.
-- Do not call `prompts.foo()` just to pass that rendered string into `prompts.bar({ foo })`; use `{{> foo}}` and pass `foo`'s variables instead.
+- Do not call `prompts.foo()` just to pass that rendered string into `prompts.bar({ foo })`; use a relative include like `{{> ./foo}}` and pass `foo`'s variables instead.
 - Do not create one-line templates unless that line has real ownership and a reason to exist independently.
 - Do not split a readable prompt into tiny fragments just because a sentence appears twice.
 - Do not leave a function whose main job is choosing which prompt snippets to render. That logic usually belongs in one parent template with conditionals.
+- Do not rename the same prompt in multiple places. Global name lives in frontmatter. Local include arg name lives in `as alias`.
 
 ```typescript
 // Bad: TypeScript is still composing the prompt.
@@ -433,29 +444,45 @@ If a variable only appears in a conditional, it is typed as `boolean | undefined
 Includes:
 
 ```markdown
-{{> basePersona}}
+{{> ../../shared/base-persona}}
+{{> ../../shared/output-format as output}}
 
 Write a support reply to {{customerName}}.
 ```
 
-Includes can use a short name like `basePersona`, a kebab name like `base-persona`, or a path suffix like `shared/base-persona`.
+Includes must use relative paths from the template that contains them. Omit the `.tpl.md` extension. Use `as alias` only to shorten the local nested variable field in the parent template.
 
 Partials with no variables are rendered automatically. Partials with variables become nested typed fields, so callers only pass what is actually needed.
 
 ## Naming
 
-File names become function names:
+Template paths become nested prompt names:
 
 ```text
-welcome-email.tpl.md  -> prompts.welcomeEmail()
-search-query.tpl.md   -> prompts.searchQuery()
-classify.tpl.md       -> prompts.classify()
+src/features/auth/welcome-email.tpl.md -> prompts.features.auth.welcomeEmail()
+src/search/query.tpl.md                -> prompts.search.query()
 ```
+
+If a framework path is too noisy, use `namespaceAliases` in `package.json` to rewrite path segments before names are generated:
+
+```json
+{
+  "tpl": {
+    "namespaceAliases": {
+      "src/app": "",
+      "(marketing)": "marketing",
+      "_prompts": ""
+    }
+  }
+}
+```
+
+`src/app/(marketing)/signup/_prompts/welcome-email.tpl.md` becomes `prompts.marketing.signup.welcomeEmail()`.
 
 You can also import a single builder:
 
 ```typescript
-import { buildWelcomeEmailPrompt } from "./src/features/auth/welcome-email.tpl.gen.js";
+import { buildFeaturesAuthWelcomeEmailPrompt } from "./src/features/auth/welcome-email.tpl.gen.js";
 ```
 
 Prompt names must be unique across the project. If two files map to the same name, TPL generates a TypeScript error that points at both files.
@@ -480,7 +507,11 @@ Zero config by default. Add a `tpl` key to `package.json` only when you want to 
   "tpl": {
     "output": "lib/tpl.gen.ts",
     "pattern": "**/*.tpl.{md,mdx,txt,html}",
-    "ignore": ["src/vendor/**"]
+    "ignore": ["src/vendor/**"],
+    "namespaceAliases": {
+      "src/app": "",
+      "_prompts": ""
+    }
   }
 }
 ```
@@ -490,8 +521,11 @@ Defaults:
 - `output`: `lib/tpl.gen.ts`
 - `pattern`: `**/*.tpl.{md,mdx,txt,html}`
 - `ignore`: `[]`
+- `namespaceAliases`: `{}`
 
 Always ignored: `node_modules`, `dist`, `.git`.
+
+`namespaceAliases` rewrites path parts before generating the nested `prompts` object. For example, with `"src/app": ""` and `"_prompts": ""`, `src/app/api/chat/_prompts/system-prompt.tpl.md` becomes `prompts.api.chat.systemPrompt()`.
 
 ## TypeScript Notes
 
@@ -526,6 +560,20 @@ TPL keeps the boring parts boring:
 - repeated text gets reused,
 - generated files stay disposable,
 - your app imports normal functions.
+
+## Releases
+
+Releases are published by CI after a version bump lands on `main`.
+
+Before committing a release:
+
+1. Review the full diff from the latest `v*` release tag.
+2. Update `CHANGELOG.md` for the new version.
+3. Call out breaking changes, new functionality, and convention changes first.
+4. Bump the version in both `packages/core/package.json` and `packages/cli/package.json`.
+5. Run the release checks, then commit and push to `main`.
+
+The CI workflow reads the version from `packages/core/package.json`. If the matching tag does not exist yet, it runs tests, publishes the package, and creates the `vX.Y.Z` tag.
 
 ## Repository Layout
 

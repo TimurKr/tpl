@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import {
   deriveFunctionName,
   parseTemplate,
@@ -24,6 +24,15 @@ describe("deriveFunctionName", () => {
   });
 
   it("works with full paths", () => {
+    expect(
+      deriveFunctionName(
+        "/project/src/features/auth/welcome-email.tpl.md",
+        "/project",
+      ),
+    ).toBe("featuresAuthWelcomeEmail");
+  });
+
+  it("keeps basename behavior when rootDir is omitted", () => {
     expect(
       deriveFunctionName("/project/src/features/auth/welcome-email.tpl.md"),
     ).toBe("welcomeEmail");
@@ -69,6 +78,7 @@ describe("parseTemplate", () => {
 
   async function write(name: string, content: string): Promise<string> {
     const path = join(tmpDir, name);
+    await mkdir(dirname(path), { recursive: true });
     await writeFile(path, content, "utf-8");
     return path;
   }
@@ -187,7 +197,7 @@ describe("parseTemplate", () => {
   it("does not treat includes as variables", async () => {
     const path = await write(
       "with-include.tpl.md",
-      "{{> shared/base}}\nHello {{userName}}",
+      "{{> ./shared/base}}\nHello {{userName}}",
     );
     const result = await parseTemplate(path, tmpDir);
     expect(result.variables.map((v) => v.name)).toEqual(["userName"]);
@@ -197,10 +207,24 @@ describe("parseTemplate", () => {
   it("extracts includes correctly", async () => {
     const path = await write(
       "with-include.tpl.md",
-      "{{> shared/base-persona}}\n{{> footer}}\nHello {{name}}",
+      "{{> ./shared/base-persona}}\n{{> ./footer}}\nHello {{name}}",
     );
     const result = await parseTemplate(path, tmpDir);
-    expect(result.includes).toEqual(["shared/base-persona", "footer"]);
+    expect(result.includes).toEqual([
+      { path: "./shared/base-persona" },
+      { path: "./footer" },
+    ]);
+  });
+
+  it("extracts include aliases", async () => {
+    const path = await write(
+      "with-include-alias.tpl.md",
+      "{{> ./shared/base-persona as persona}}\nHello {{name}}",
+    );
+    const result = await parseTemplate(path, tmpDir);
+    expect(result.includes).toEqual([
+      { path: "./shared/base-persona", alias: "persona" },
+    ]);
   });
 
   it("returns empty includes when none present", async () => {
@@ -238,6 +262,30 @@ describe("parseTemplate", () => {
     const path = await write("welcome-email.tpl.md", "Hello {{name}}");
     const result = await parseTemplate(path, tmpDir);
     expect(result.functionName).toBe("welcomeEmail");
+  });
+
+  it("derives function name from path relative to root", async () => {
+    const path = await write(
+      "features/auth/welcome-email.tpl.md",
+      "Hello {{name}}",
+    );
+    const result = await parseTemplate(path, tmpDir);
+    expect(result.functionName).toBe("featuresAuthWelcomeEmail");
+    expect(result.promptPath).toEqual(["features", "auth", "welcomeEmail"]);
+  });
+
+  it("applies namespace aliases before deriving names", async () => {
+    const path = await write(
+      "app/(marketing)/signup/_prompts/welcome-email.tpl.md",
+      "Hello {{name}}",
+    );
+    const result = await parseTemplate(path, tmpDir, {
+      app: "",
+      "(marketing)": "marketing",
+      _prompts: "",
+    });
+    expect(result.promptPath).toEqual(["marketing", "signup", "welcomeEmail"]);
+    expect(result.functionName).toBe("marketingSignupWelcomeEmail");
   });
 
   it("trims whitespace from variable names", async () => {

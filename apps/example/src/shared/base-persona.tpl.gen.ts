@@ -6,17 +6,18 @@
 //   {{var:type}}          typed: string | number | boolean | string[]
 //   {{var|default}}       optional — uses default when omitted
 //   {{#if var}}...{{/if}} conditional block — condition-only vars are optional booleans
-//   {{> name}}            partial — vars-less partials auto-render; vars partials become nested interface fields
+//   {{> ./path}}          relative partial — vars-less partials auto-render; vars partials become nested interface fields
 // Docs: https://github.com/timurkr/tpl
 
 import { renderTemplate } from "the-prompting-library/runtime";
 import TEMPLATE from "./base-persona.tpl.md" with { type: "text" };
 
 /**
+ * Shared base assistant persona
  * @source src/shared/base-persona.tpl.md
  */
-export interface BasePersonaVariables {}
+export interface SharedBasePersonaVariables {}
 
-export function buildBasePersonaPrompt(): string {
+export function buildSharedBasePersonaPrompt(): string {
   return renderTemplate(TEMPLATE, {});
 }
