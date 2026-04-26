@@ -87,6 +87,17 @@ describe("collector", () => {
       expect(names).toEqual(["a", "b", "c"]);
     });
 
+    it("uses the folder path for index templates while preserving the source stem", async () => {
+      await writeTemplate("src/features/auth/index.tpl.md", "Auth {{name}}");
+
+      const templates = await collect({ rootDir, outputFile: outputFile() });
+
+      expect(templates).toHaveLength(1);
+      expect(templates[0]?.sourceStem).toBe("index");
+      expect(templates[0]?.functionName).toBe("featuresAuth");
+      expect(templates[0]?.promptPath).toEqual(["features", "auth"]);
+    });
+
     it("parses templates correctly with VariableDef", async () => {
       await writeTemplate(
         "src/welcome.tpl.md",
@@ -184,6 +195,55 @@ describe("collector", () => {
       expect(index).toContain("export const promptMap");
     });
 
+    it("generates index templates with folder-derived builder and prompt names", async () => {
+      await writeTemplate("src/features/auth/index.tpl.md", "Auth {{name}}");
+      const out = outputFile();
+
+      await generate({ rootDir, outputFile: out });
+
+      const promptFile = await readFile(
+        join(rootDir, "src/features/auth/index.tpl.gen.ts"),
+        "utf-8",
+      );
+      expect(promptFile).toContain("export interface FeaturesAuthVariables");
+      expect(promptFile).toContain("export function buildFeaturesAuthPrompt");
+
+      const index = await readFile(out, "utf-8");
+      expect(index).toContain(
+        `export * from "../src/features/auth/index.tpl.gen.js"`,
+      );
+      expect(index).toContain("features: {");
+      expect(index).toContain("auth: buildFeaturesAuthPrompt,");
+      expect(index).toContain(`"features.auth": buildFeaturesAuthPrompt`);
+      expect(index).not.toContain("index: buildFeaturesAuthPrompt");
+    });
+
+    it("applies namespace aliases before generating index template names", async () => {
+      await writeTemplate(
+        "app/(marketing)/signup/_prompts/index.tpl.md",
+        "Signup {{name}}",
+      );
+      const out = outputFile();
+
+      const result = await generate({
+        rootDir,
+        outputFile: out,
+        namespaceAliases: {
+          app: "",
+          "(marketing)": "marketing",
+          _prompts: "",
+        },
+      });
+
+      expect(result.issues).toEqual([]);
+      const index = await readFile(out, "utf-8");
+      expect(index).toContain("marketing: {");
+      expect(index).toContain("signup: buildMarketingSignupPrompt,");
+      expect(index).toContain(`"marketing.signup": buildMarketingSignupPrompt`);
+      expect(index).not.toContain("prompts: {");
+      expect(index).not.toContain("index: buildMarketingSignupPrompt");
+    });
+
     it("manifest exports renderPrompt", async () => {
       await writeTemplate("src/greet.tpl.md", "Hello");
       const out = outputFile();
@@ -273,6 +333,31 @@ describe("collector", () => {
       expect(index).toContain("greet: buildOtherGreetPrompt,");
 
       expect(result.count).toBe(2); // 2 templates parsed
+    });
+
+    it("reports a collision when folder.tpl and folder/index.tpl share the same prompt name", async () => {
+      await writeTemplate("src/auth.tpl.md", "Auth root");
+      await writeTemplate("src/auth/index.tpl.md", "Auth index");
+      const out = outputFile();
+
+      const result = await generate({ rootDir, outputFile: out });
+
+      expect(result.issues).toContainEqual({
+        kind: "name-collision",
+        filePath: join(rootDir, "src/auth.tpl.gen.ts"),
+      });
+      expect(result.issues).toContainEqual({
+        kind: "name-collision",
+        filePath: join(rootDir, "src/auth/index.tpl.gen.ts"),
+      });
+
+      const generated = await readFile(
+        join(rootDir, "src/auth/index.tpl.gen.ts"),
+        "utf-8",
+      );
+      expect(generated).toContain("NAME COLLISION");
+      expect(generated).toContain("src/auth.tpl.md");
+      expect(generated).toContain("src/auth/index.tpl.md");
     });
 
     it("removes stale prompt files when a template is deleted", async () => {

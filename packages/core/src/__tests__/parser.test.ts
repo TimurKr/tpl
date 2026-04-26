@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import {
   deriveFunctionName,
+  derivePromptPath,
   parseTemplate,
   SUPPORTED_EXTENSIONS,
 } from "../parser.js";
@@ -36,6 +37,66 @@ describe("deriveFunctionName", () => {
     expect(
       deriveFunctionName("/project/src/features/auth/welcome-email.tpl.md"),
     ).toBe("welcomeEmail");
+  });
+
+  it("uses the parent folder name for index templates in path-derived names", () => {
+    expect(
+      derivePromptPath("/project/src/features/auth/index.tpl.md", "/project"),
+    ).toEqual(["features", "auth"]);
+    expect(
+      deriveFunctionName("/project/src/features/auth/index.tpl.md", "/project"),
+    ).toBe("featuresAuth");
+  });
+
+  it("keeps index as the name when no parent folder participates in naming", () => {
+    expect(derivePromptPath("/project/index.tpl.md", "/project")).toEqual([
+      "index",
+    ]);
+    expect(deriveFunctionName("/project/index.tpl.md", "/project")).toBe(
+      "index",
+    );
+  });
+
+  it("applies namespace aliases before defaulting index templates to their folder", () => {
+    const aliases = {
+      app: "",
+      "(marketing)": "marketing",
+      _prompts: "",
+    };
+
+    expect(
+      derivePromptPath(
+        "/project/app/(marketing)/signup/_prompts/index.tpl.md",
+        "/project",
+        aliases,
+      ),
+    ).toEqual(["marketing", "signup"]);
+    expect(
+      deriveFunctionName(
+        "/project/app/(marketing)/signup/_prompts/index.tpl.md",
+        "/project",
+        aliases,
+      ),
+    ).toBe("marketingSignup");
+  });
+
+  it("uses renamed namespace segments for index template folder defaults", () => {
+    expect(
+      derivePromptPath("/project/src/features/auth/index.tpl.md", "/project", {
+        features: "",
+        auth: "account",
+      }),
+    ).toEqual(["account"]);
+    expect(
+      deriveFunctionName(
+        "/project/src/features/auth/index.tpl.md",
+        "/project",
+        {
+          features: "",
+          auth: "account",
+        },
+      ),
+    ).toBe("account");
   });
 
   it("converts two-word kebab", () => {
@@ -272,6 +333,14 @@ describe("parseTemplate", () => {
     const result = await parseTemplate(path, tmpDir);
     expect(result.functionName).toBe("featuresAuthWelcomeEmail");
     expect(result.promptPath).toEqual(["features", "auth", "welcomeEmail"]);
+  });
+
+  it("parses index templates as the containing folder prompt", async () => {
+    const path = await write("features/auth/index.tpl.md", "Hello {{name}}");
+    const result = await parseTemplate(path, tmpDir);
+    expect(result.sourceStem).toBe("index");
+    expect(result.functionName).toBe("featuresAuth");
+    expect(result.promptPath).toEqual(["features", "auth"]);
   });
 
   it("applies namespace aliases before deriving names", async () => {

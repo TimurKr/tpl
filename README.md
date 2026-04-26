@@ -380,6 +380,7 @@ Good practice:
 - Keep TypeScript focused on loading files, counting things, reading config, and passing values into generated functions.
 - Use the exported `*Variables` interfaces when typing helper boundaries. TPL already exports argument interfaces, so you should not need `Parameters<typeof prompts.somePrompt>[0]`.
 - Let the file path define the generated prompt path. Use `namespaceAliases` when framework folders make the generated API noisy.
+- Name the main template in a prompt folder `index.tpl.md` when the nearest kept folder already has the prompt name. This keeps related files colocated without repeating names like `welcome-email/welcome-email.tpl.md`.
 - Use `as alias` on an include when the default nested variable key would be too long for the parent prompt.
 - Create a subprompt only when it is reused meaningfully or is one coherent functional unit with a clear name.
 
@@ -461,6 +462,20 @@ Template paths become nested prompt names:
 ```text
 src/features/auth/welcome-email.tpl.md -> prompts.features.auth.welcomeEmail()
 src/search/query.tpl.md                -> prompts.search.query()
+```
+
+Templates named `index.tpl.*` use their nearest remaining folder as the prompt name, after any configured path aliases. This is useful when a prompt has nearby partials or fixtures:
+
+```text
+src/features/auth/welcome-email/index.tpl.md -> prompts.features.auth.welcomeEmail()
+src/features/auth/welcome-email/tone.tpl.md  -> prompts.features.auth.welcomeEmail.tone()
+```
+
+Prefer this over duplicating the same name in both the folder and file path:
+
+```text
+Avoid:  src/features/auth/welcome-email/welcome-email.tpl.md
+Prefer: src/features/auth/welcome-email/index.tpl.md
 ```
 
 If a framework path is too noisy, use `namespaceAliases` in `package.json` to rewrite path segments before names are generated:

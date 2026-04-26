@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented here.
 
+## 0.7.0 - 2026-04-26
+
+### Added
+
+- Templates named `index.tpl.*` now default to their containing folder name in generated prompt paths and builder names. For example, `src/features/auth/index.tpl.md` generates `prompts.features.auth`, `promptMap["features.auth"]`, and `buildFeaturesAuthPrompt`.
+
+### Changed
+
+- `index.tpl.*` naming is applied after `namespaceAliases`, so aliases can still remove or rename framework folders before the folder-derived prompt name is generated.
+- If `folder.tpl.*` and `folder/index.tpl.*` resolve to the same prompt name, generation now follows the existing name-collision diagnostic path instead of silently choosing one.
+
 ## 0.6.0 - 2026-04-26
 
 ### Breaking Changes

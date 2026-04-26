@@ -70,6 +70,13 @@ function toPascal(words: string[]): string {
     .join("");
 }
 
+function applyIndexTemplateDefault(segments: string[]): string[] {
+  const last = segments.at(-1);
+  if (last !== "index" || segments.length <= 1) return segments;
+
+  return segments.slice(0, -1);
+}
+
 export function derivePromptPath(
   filePath: string,
   rootDir?: string,
@@ -85,7 +92,8 @@ export function derivePromptPath(
   const segments = stemPath.split("/").filter(Boolean);
   const meaningfulSegments =
     segments[0] === "src" ? segments.slice(1) : segments;
-  const promptPath = meaningfulSegments
+  const namedSegments = applyIndexTemplateDefault(meaningfulSegments);
+  const promptPath = namedSegments
     .map((segment) => {
       const [first, ...rest] = toWords(segment);
       return first
