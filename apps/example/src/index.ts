@@ -14,9 +14,13 @@
 //   persona: {},
 // });
 // console.log(prompt);
+//
+// Folder-index templates compose like normal relative includes:
+// src/features/auth/onboarding-sequence.tpl.md includes {{> ./welcome-email}}
+// which resolves to src/features/auth/welcome-email/index.tpl.md.
 
 // For tree-shaking / single import use the build function directly:
-// import { buildWelcomeEmailPrompt } from "./features/auth/welcome-email.tpl.gen.js";
+// import { buildAuthWelcomeEmailPrompt } from "./features/auth/welcome-email/index.tpl.gen.js";
 
 // For dynamic dispatch by name:
 // import { renderPrompt } from "../lib/tpl.gen.js";

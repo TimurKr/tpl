@@ -163,6 +163,54 @@ describe("resolveIncludes", () => {
     expect(result).toBe("You are an expert.\nHelp with {{topic}}.");
   });
 
+  it("resolves a folder include to that folder's index template", () => {
+    const welcome = makeTemplate({
+      functionName: "authWelcomeEmail",
+      filePath: "/project/features/auth/welcome-email/index.tpl.md",
+      rawContent: "Welcome {{userName}}.",
+    });
+    const main = makeTemplate({
+      functionName: "main",
+      filePath: "/project/features/auth/main.tpl.md",
+      rawContent: "{{> ./welcome-email}}\nThen ask them to verify setup.",
+      includes: ["./welcome-email"],
+    });
+    const map = new Map([
+      ["authWelcomeEmail", welcome],
+      ["main", main],
+    ]);
+    const result = resolveIncludes(main, map);
+    expect(result).toBe(
+      "Welcome {{userName}}.\nThen ask them to verify setup.",
+    );
+  });
+
+  it("prefers a direct template file over a folder index with the same include path", () => {
+    const direct = makeTemplate({
+      functionName: "directWelcomeEmail",
+      filePath: "/project/features/auth/welcome-email.tpl.md",
+      rawContent: "Direct welcome.",
+    });
+    const index = makeTemplate({
+      functionName: "indexWelcomeEmail",
+      filePath: "/project/features/auth/welcome-email/index.tpl.md",
+      rawContent: "Index welcome.",
+    });
+    const main = makeTemplate({
+      functionName: "main",
+      filePath: "/project/features/auth/main.tpl.md",
+      rawContent: "{{> ./welcome-email}}",
+      includes: ["./welcome-email"],
+    });
+    const map = new Map([
+      ["directWelcomeEmail", direct],
+      ["indexWelcomeEmail", index],
+      ["main", main],
+    ]);
+    const result = resolveIncludes(main, map);
+    expect(result).toBe("Direct welcome.");
+  });
+
   it("self-reference is still caught with name-only refs", () => {
     const selfRef = makeTemplate({
       functionName: "selfRef",

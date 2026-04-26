@@ -61,6 +61,10 @@ export function findTemplate(
     `${base}.tpl.mdx`,
     `${base}.tpl.txt`,
     `${base}.tpl.html`,
+    `${base}/index.tpl.md`,
+    `${base}/index.tpl.mdx`,
+    `${base}/index.tpl.txt`,
+    `${base}/index.tpl.html`,
   ];
 
   for (const template of allTemplates.values()) {

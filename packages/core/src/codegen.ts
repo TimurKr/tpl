@@ -375,33 +375,53 @@ function syntaxCommentLines(): string[] {
 function buildNestedPrompts(
   entries: Array<{ promptPath: string[]; buildFnName: string }>,
 ): string {
-  const root: Record<string, unknown> = {};
+  interface PromptNode {
+    buildFnName?: string;
+    children: Record<string, PromptNode>;
+  }
+
+  const root: PromptNode = { children: {} };
 
   for (const { promptPath, buildFnName } of entries) {
     let cursor = root;
     for (const segment of promptPath.slice(0, -1)) {
-      cursor[segment] ??= {};
-      cursor = cursor[segment] as Record<string, unknown>;
+      cursor.children[segment] ??= { children: {} };
+      cursor = cursor.children[segment];
     }
     const leaf = promptPath.at(-1);
-    if (leaf) cursor[leaf] = buildFnName;
+    if (leaf) {
+      cursor.children[leaf] ??= { children: {} };
+      cursor.children[leaf].buildFnName = buildFnName;
+    }
   }
 
-  function render(value: unknown, indent = 0): string {
-    if (typeof value === "string") return value;
+  function renderNode(node: PromptNode, indent = 0): string {
+    const childKeys = Object.keys(node.children);
+    if (node.buildFnName && childKeys.length === 0) return node.buildFnName;
+    if (node.buildFnName) {
+      return `Object.assign(${node.buildFnName}, ${renderObject(
+        node.children,
+        indent,
+      )})`;
+    }
+    return renderObject(node.children, indent);
+  }
+
+  function renderObject(
+    children: Record<string, PromptNode>,
+    indent = 0,
+  ): string {
     const pad = " ".repeat(indent);
     const childPad = " ".repeat(indent + 2);
     const lines = ["{"];
-    for (const [key, child] of Object.entries(
-      value as Record<string, unknown>,
-    )) {
-      lines.push(`${childPad}${key}: ${render(child, indent + 2)},`);
+    for (const [key, child] of Object.entries(children)) {
+      lines.push(`${childPad}${key}: ${renderNode(child, indent + 2)},`);
     }
     lines.push(`${pad}}`);
     return lines.join("\n");
   }
 
-  return render(root);
+  return renderNode(root);
 }
 
 /** Generate the barrel file that re-exports all prompts and defines the prompts object. */

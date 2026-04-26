@@ -451,7 +451,7 @@ Includes:
 Write a support reply to {{customerName}}.
 ```
 
-Includes must use relative paths from the template that contains them. Omit the `.tpl.md` extension. Use `as alias` only to shorten the local nested variable field in the parent template.
+Includes must use relative paths from the template that contains them. Omit the `.tpl.md` extension. A folder path like `{{> ./welcome-email}}` can resolve to `welcome-email/index.tpl.md`. Use `as alias` only to shorten the local nested variable field in the parent template.
 
 Partials with no variables are rendered automatically. Partials with variables become nested typed fields, so callers only pass what is actually needed.
 

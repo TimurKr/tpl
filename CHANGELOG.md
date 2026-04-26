@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented here.
 
+## 0.7.1 - 2026-04-26
+
+### Fixed
+
+- Relative includes can now target folder-index templates. For example, `{{> ./welcome-email}}` resolves to `welcome-email/index.tpl.*` when no sibling `welcome-email.tpl.*` file exists.
+- Direct sibling templates keep precedence over folder-index fallbacks, so `{{> ./welcome-email}}` still resolves to `welcome-email.tpl.*` when both forms exist.
+- Nested `prompts` entries can now be callable and still expose child prompts, so `prompts.auth.welcomeEmail()` and `prompts.auth.welcomeEmail.tone()` can coexist when an `index.tpl.*` template has colocated child templates.
+
+### Changed
+
+- README now notes that folder-path includes can resolve to `index.tpl.md` templates.
+- The example app now demonstrates folder-index composition with `auth/welcome-email/index.tpl.md` and a parent template that includes it by folder path.
+
 ## 0.7.0 - 2026-04-26
 
 ### Added

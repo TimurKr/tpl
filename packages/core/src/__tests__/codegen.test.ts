@@ -370,6 +370,35 @@ describe("generateFiles", () => {
     );
   });
 
+  it("index supports a callable prompt that also has nested child prompts", () => {
+    const parent = makeTemplate({
+      functionName: "authWelcomeEmail",
+      promptPath: ["auth", "welcomeEmail"],
+      filePath: "/project/src/features/auth/welcome-email/index.tpl.md",
+      rawContent: "Welcome",
+    });
+    const child = makeTemplate({
+      functionName: "authWelcomeEmailTone",
+      promptPath: ["auth", "welcomeEmail", "tone"],
+      filePath: "/project/src/features/auth/welcome-email/tone.tpl.md",
+      rawContent: "Friendly",
+    });
+    const files = generateFiles(
+      [parent, child],
+      makeMap([parent, child]),
+      opts,
+    );
+    const index = files.get(opts.outputFile)!;
+
+    expect(index).toContain("welcomeEmail: Object.assign(");
+    expect(index).toContain("buildAuthWelcomeEmailPrompt");
+    expect(index).toContain("tone: buildAuthWelcomeEmailTonePrompt");
+    expect(index).toContain(`"auth.welcomeEmail": buildAuthWelcomeEmailPrompt`);
+    expect(index).toContain(
+      `"auth.welcomeEmail.tone": buildAuthWelcomeEmailTonePrompt`,
+    );
+  });
+
   it("index exports renderPrompt function", () => {
     const t = makeTemplate({ functionName: "greet", rawContent: "Hello" });
     const files = generateFiles([t], makeMap([t]), opts);
@@ -437,6 +466,37 @@ describe("generateFiles", () => {
     // Called with vars.footer
     expect(welcomeFile).toContain(
       `"./shared/footer": buildFooterPrompt(vars.footer)`,
+    );
+  });
+
+  it("folder index partials can be included by the folder path", () => {
+    const partial = makeTemplate({
+      functionName: "authWelcomeEmail",
+      promptPath: ["auth", "welcomeEmail"],
+      filePath: "/project/src/features/auth/welcome-email/index.tpl.md",
+      variables: [varDef("userName")],
+      rawContent: "Welcome {{userName}}.",
+    });
+    const parent = makeTemplate({
+      functionName: "authOnboardingSequence",
+      promptPath: ["auth", "onboardingSequence"],
+      filePath: "/project/src/features/auth/onboarding-sequence.tpl.md",
+      includes: ["./welcome-email as welcomeEmail"],
+      rawContent: "{{> ./welcome-email as welcomeEmail}}\nNext steps.",
+    });
+    const map = makeMap([partial, parent]);
+    const files = generateFiles([partial, parent], map, opts);
+    const parentFile = files.get(generatedPath(parent))!;
+
+    expect(parentFile).toContain(
+      `import { buildAuthWelcomeEmailPrompt } from "./welcome-email/index.tpl.gen.js"`,
+    );
+    expect(parentFile).toContain(
+      `import type { AuthWelcomeEmailVariables } from "./welcome-email/index.tpl.gen.js"`,
+    );
+    expect(parentFile).toContain("  welcomeEmail: AuthWelcomeEmailVariables;");
+    expect(parentFile).toContain(
+      `"welcomeEmail": buildAuthWelcomeEmailPrompt(vars.welcomeEmail)`,
     );
   });
 
