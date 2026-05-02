@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented here.
 
+## 0.7.2 - 2026-05-02
+
+### Fixed
+
+- `renderTemplate` now correctly pairs nested `{{#if}}…{{/if}}` blocks using a depth counter. Previously a lazy regex paired the outer `{{#if}}` with the first inner `{{/if}}`, leaving an orphan closing tag in the output and removing the wrong content. Templates that nest conditionals (e.g. `{{#if a}}…{{#if b}}…{{/if}}…{{/if}}`) now render as expected for every combination of truthy/falsy variables.
+
 ## 0.7.1 - 2026-04-26
 
 ### Fixed

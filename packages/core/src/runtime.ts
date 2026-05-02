@@ -48,6 +48,69 @@ function resolvePartials(
   });
 }
 
+const IF_OPEN_RE = /\{\{#if\s+(\w+)\}\}/g;
+const IF_TOKEN_RE = /\{\{#if\s+\w+\}\}|\{\{\/if\}\}/g;
+const IF_CLOSE = "{{/if}}";
+
+/**
+ * Render `{{#if var}}...{{/if}}` blocks with proper nesting support.
+ *
+ * Walks the input left-to-right; for every opening tag it scans forward with
+ * a depth counter to find the matching closing tag, then recurses into the
+ * inner block when the variable is truthy.
+ */
+function renderConditionals(
+  input: string,
+  flat: Record<string, unknown>,
+): string {
+  let result = "";
+  let cursor = 0;
+  while (cursor < input.length) {
+    IF_OPEN_RE.lastIndex = cursor;
+    const open = IF_OPEN_RE.exec(input);
+    if (!open) {
+      result += input.slice(cursor);
+      break;
+    }
+    result += input.slice(cursor, open.index);
+
+    const varName = open[1] as string;
+    const blockStart = open.index + open[0].length;
+
+    IF_TOKEN_RE.lastIndex = blockStart;
+    let depth = 1;
+    let closeIdx = -1;
+    let token: RegExpExecArray | null;
+    while ((token = IF_TOKEN_RE.exec(input)) !== null) {
+      if (token[0] === IF_CLOSE) {
+        depth--;
+        if (depth === 0) {
+          closeIdx = token.index;
+          break;
+        }
+      } else {
+        depth++;
+      }
+    }
+
+    if (closeIdx === -1) {
+      // Unmatched open tag — leave the rest of the input untouched.
+      result += input.slice(open.index);
+      break;
+    }
+
+    const value = flat[varName];
+    const truthy =
+      value !== undefined && value !== null && value !== false && value !== "";
+    if (truthy) {
+      const inner = input.slice(blockStart, closeIdx);
+      result += renderConditionals(inner, flat);
+    }
+    cursor = closeIdx + IF_CLOSE.length;
+  }
+  return result;
+}
+
 /**
  * Recursively flatten a nested vars object into a flat key-value map.
  * Nested objects (partial variable groups) are spread into the top level.
@@ -93,23 +156,10 @@ export function renderTemplate<T extends object>(
   }
 
   // Process conditional blocks: {{#if var}}...{{/if}}
-  // Iterate until stable to support nested conditionals.
-  let prev = "";
-  while (prev !== result) {
-    prev = result;
-    result = result.replace(
-      /\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g,
-      (_, varName: string, block: string) => {
-        const value = flat[varName];
-        return value !== undefined &&
-          value !== null &&
-          value !== false &&
-          value !== ""
-          ? block
-          : "";
-      },
-    );
-  }
+  // Uses a depth counter so each {{#if}} pairs with its matching {{/if}}.
+  // A naive lazy regex would mispair the outer {{#if}} with the FIRST nested
+  // {{/if}}, leaving an orphan closing tag in the output.
+  result = renderConditionals(result, flat);
 
   // Substitute variables: {{var}}, {{var:type}}, {{var|default}}, {{var:type|default}}
   result = result.replace(

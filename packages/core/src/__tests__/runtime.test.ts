@@ -91,6 +91,66 @@ describe("renderTemplate", () => {
     );
   });
 
+  it("omits both blocks when outer and inner conditionals are falsy", () => {
+    expect(
+      renderTemplate("{{#if a}}A{{#if b}}B{{/if}}{{/if}}", {
+        a: false,
+        b: false,
+      }),
+    ).toBe("");
+  });
+
+  it("renders only outer content when outer is truthy and inner is falsy", () => {
+    expect(
+      renderTemplate("{{#if a}}A{{#if b}}B{{/if}}C{{/if}}", {
+        a: true,
+        b: false,
+      }),
+    ).toBe("AC");
+  });
+
+  it("renders nested content when both conditionals are truthy", () => {
+    expect(
+      renderTemplate("{{#if a}}A{{#if b}}B{{/if}}C{{/if}}", {
+        a: true,
+        b: true,
+      }),
+    ).toBe("ABC");
+  });
+
+  it("omits inner block while outer is truthy when only inner is falsy", () => {
+    expect(
+      renderTemplate(
+        "{{#if outer}}before {{#if inner}}MID{{/if}} after{{/if}}",
+        { outer: true, inner: false },
+      ),
+    ).toBe("before  after");
+  });
+
+  it("handles deeply nested conditionals", () => {
+    expect(
+      renderTemplate(
+        "{{#if a}}1{{#if b}}2{{#if c}}3{{/if}}4{{/if}}5{{/if}}",
+        { a: true, b: true, c: true },
+      ),
+    ).toBe("12345");
+    expect(
+      renderTemplate(
+        "{{#if a}}1{{#if b}}2{{#if c}}3{{/if}}4{{/if}}5{{/if}}",
+        { a: true, b: false, c: true },
+      ),
+    ).toBe("15");
+  });
+
+  it("handles two sibling conditional blocks", () => {
+    expect(
+      renderTemplate("{{#if a}}A{{/if}}-{{#if b}}B{{/if}}", {
+        a: true,
+        b: false,
+      }),
+    ).toBe("A-");
+  });
+
   it("renders nested partials by flattening vars", () => {
     const result = renderTemplate("Hi {{userName}}, email: {{email}}", {
       userName: "Alice",
