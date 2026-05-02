@@ -80,8 +80,9 @@ function renderConditionals(
     IF_TOKEN_RE.lastIndex = blockStart;
     let depth = 1;
     let closeIdx = -1;
-    let token: RegExpExecArray | null;
-    while ((token = IF_TOKEN_RE.exec(input)) !== null) {
+    while (true) {
+      const token = IF_TOKEN_RE.exec(input);
+      if (token === null) break;
       if (token[0] === IF_CLOSE) {
         depth--;
         if (depth === 0) {

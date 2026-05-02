@@ -129,16 +129,18 @@ describe("renderTemplate", () => {
 
   it("handles deeply nested conditionals", () => {
     expect(
-      renderTemplate(
-        "{{#if a}}1{{#if b}}2{{#if c}}3{{/if}}4{{/if}}5{{/if}}",
-        { a: true, b: true, c: true },
-      ),
+      renderTemplate("{{#if a}}1{{#if b}}2{{#if c}}3{{/if}}4{{/if}}5{{/if}}", {
+        a: true,
+        b: true,
+        c: true,
+      }),
     ).toBe("12345");
     expect(
-      renderTemplate(
-        "{{#if a}}1{{#if b}}2{{#if c}}3{{/if}}4{{/if}}5{{/if}}",
-        { a: true, b: false, c: true },
-      ),
+      renderTemplate("{{#if a}}1{{#if b}}2{{#if c}}3{{/if}}4{{/if}}5{{/if}}", {
+        a: true,
+        b: false,
+        c: true,
+      }),
     ).toBe("15");
   });
 
