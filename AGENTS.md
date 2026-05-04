@@ -60,6 +60,7 @@ node packages/cli/dist/index.cjs check --cwd apps/example
 {{var:type}}          typed: string | number | boolean | string[]
 {{var|default}}       optional with fallback
 {{#if var}}...{{/if}} conditional block (condition-only vars are optional booleans)
+{{#switch var}}...{{/switch}} multi-way branch: `{{#case "lit"}}`...`{{/case}}` (or `'lit'` or bare `lit`), optional `{{#default}}`...`{{/default}}`; first matching case wins (`String(var)` except `undefined`/`null`, which only match `{{#case ""}}`)
 {{> ./partial-name}}  include another template by relative path
 {{> ./partial-name as localName}} include with local nested variable alias
 ```

@@ -44,6 +44,32 @@ Focus on: {{focusArea|key decisions}}
 
 Variables that appear only inside `{{#if}}` blocks are typed as optional booleans. If the same variable also appears as `{{note}}`, `{{note:number}}`, or another variable expression, TPL uses that declared type and marks it optional. The block is omitted when the variable is falsy or missing.
 
+## Switch / case
+
+Pick one branch from a discriminant (`String(value)` for defined non-null values; `undefined` / `null` only match `{{#case ""}}`):
+
+```markdown
+{{#switch personality}}
+{{#case "friendlyExpert"}}
+{{> ./personality-friendly-expert}}
+{{/case}}
+{{#case "dataNerd"}}
+{{> ./personality-data-nerd}}
+{{/case}}
+{{#default}}
+{{> ./personality-default}}
+{{/default}}
+{{/switch}}
+```
+
+- Literals: `{{#case "foo"}}`, `{{#case 'foo'}}`, or `{{#case foo}}` (bare word)
+- First matching `case` wins; if none match, `default` is used when present
+- The discriminant is inferred as a **required `string`** when that name does not appear in `{{var}}` / `{{var:type}}` and has not already been inferred as a **condition-only** `{{#if name}}` optional boolean
+
+Case literals use string equality (`String(value)` for defined non-null values). **`undefined` and `null` match only `{{#case ""}}`** (they do not match a case literal `"undefined"` or `"null"`).
+
+`{{#if}}` and `{{#switch}}` interact correctly: a switch inside a falsy `if` is not expanded, and conditionals inside a chosen `case` still run after the switch is resolved.
+
 ## Includes
 
 Use `{{> ./path}}` to include another prompt by relative path:

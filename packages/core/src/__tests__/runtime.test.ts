@@ -196,4 +196,58 @@ describe("renderTemplate", () => {
   it("handles boolean variable (converts to string)", () => {
     expect(renderTemplate("{{flag}}", { flag: true })).toBe("true");
   });
+
+  it("renders first matching switch case (double-quoted literal)", () => {
+    const tpl = `{{#switch role}}{{#case "admin"}}A{{/case}}{{#case "user"}}U{{/case}}{{/switch}}`;
+    expect(renderTemplate(tpl, { role: "user" })).toBe("U");
+    expect(renderTemplate(tpl, { role: "admin" })).toBe("A");
+  });
+
+  it("renders switch case with single-quoted or bare word literal", () => {
+    expect(
+      renderTemplate(
+        `{{#switch x}}{{#case 'b'}}B{{/case}}{{#case c}}C{{/case}}{{/switch}}`,
+        { x: "c" },
+      ),
+    ).toBe("C");
+    expect(
+      renderTemplate(
+        `{{#switch x}}{{#case 'b'}}B{{/case}}{{#case c}}C{{/case}}{{/switch}}`,
+        { x: "b" },
+      ),
+    ).toBe("B");
+  });
+
+  it("uses default when no case matches", () => {
+    const tpl = `{{#switch m}}{{#case "a"}}A{{/case}}{{#default}}Z{{/default}}{{/switch}}`;
+    expect(renderTemplate(tpl, { m: "x" })).toBe("Z");
+  });
+
+  it("omits switch output when no case matches and no default", () => {
+    const tpl = `{{#switch m}}{{#case "a"}}A{{/case}}{{/switch}}`;
+    expect(renderTemplate(tpl, { m: "other" })).toBe("");
+  });
+
+  it("does not expand switch inside a falsy if branch", () => {
+    const tpl = `{{#if show}}{{#switch k}}{{#case "1"}}one{{/case}}{{/switch}}{{/if}}`;
+    expect(renderTemplate(tpl, { show: false, k: "1" })).toBe("");
+  });
+
+  it("runs if inside a chosen case after switch resolves", () => {
+    const tpl = `{{#switch k}}{{#case "a"}}{{#if extra}}X{{/if}}Y{{/case}}{{/switch}}`;
+    expect(renderTemplate(tpl, { k: "a", extra: true })).toBe("XY");
+    expect(renderTemplate(tpl, { k: "a", extra: false })).toBe("Y");
+  });
+
+  it('matches {{#case ""}} when discriminant is missing or null', () => {
+    const tpl = `{{#switch k}}{{#case ""}}empty{{/case}}{{#default}}d{{/default}}{{/switch}}`;
+    expect(renderTemplate(tpl, {} as object)).toBe("empty");
+    expect(renderTemplate(tpl, { k: null as unknown as string })).toBe("empty");
+    expect(renderTemplate(tpl, { k: "x" })).toBe("d");
+  });
+
+  it("resolves nested switch in a case body", () => {
+    const tpl = `{{#switch o}}{{#case "out"}}{{#switch i}}{{#case "in"}}ok{{/case}}{{/switch}}{{/case}}{{/switch}}`;
+    expect(renderTemplate(tpl, { o: "out", i: "in" })).toBe("ok");
+  });
 });

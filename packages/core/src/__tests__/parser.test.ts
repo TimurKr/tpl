@@ -240,6 +240,36 @@ describe("parseTemplate", () => {
     expect(v?.type).toBe("boolean");
   });
 
+  it("infers {{#switch}} discriminant as required string when not declared elsewhere", async () => {
+    const path = await write(
+      "mode.tpl.md",
+      '{{#switch mode}}{{#case "x"}}X{{/case}}{{/switch}}',
+    );
+    const result = await parseTemplate(path, tmpDir);
+    const v = result.variables.find((x) => x.name === "mode");
+    expect(v).toMatchObject({ name: "mode", type: "string", optional: false });
+  });
+
+  it("keeps existing variable declaration when discriminant also appears as {{var}}", async () => {
+    const path = await write(
+      "mode2.tpl.md",
+      'Mode: {{mode}}\n{{#switch mode}}{{#case "a"}}A{{/case}}{{/switch}}',
+    );
+    const result = await parseTemplate(path, tmpDir);
+    const v = result.variables.find((x) => x.name === "mode");
+    expect(v).toMatchObject({ name: "mode", type: "string", optional: false });
+  });
+
+  it("does not override condition-only #if typing when same name is switch discriminant", async () => {
+    const path = await write(
+      "amb.tpl.md",
+      '{{#if mode}}{{#switch mode}}{{#case "a"}}A{{/case}}{{/switch}}{{/if}}',
+    );
+    const result = await parseTemplate(path, tmpDir);
+    const v = result.variables.find((x) => x.name === "mode");
+    expect(v).toMatchObject({ name: "mode", type: "boolean", optional: true });
+  });
+
   it("deduplicates variables preserving order", async () => {
     const path = await write(
       "greet.tpl.md",

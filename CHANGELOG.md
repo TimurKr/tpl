@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented here.
 
+## 0.9.0 - 2026-05-04
+
+### Added
+
+- **`{{#switch discriminant}}` … `{{/switch}}`** — multi-way template branching with `{{#case "literal"}}` … `{{/case}}` (also single-quoted or bare word literals), optional `{{#default}}` … `{{/default}}`. The first case whose literal equals the discriminant wins (`String(value)` for defined non-null values; **`undefined` / `null` match only `{{#case ""}}`**). Otherwise the default branch is used if present. `renderTemplate` alternates `#if` and `#switch` passes until stable so switches inside falsy conditionals are not expanded, while `#if` inside a chosen case still runs after the switch resolves.
+- Parser records the switch discriminant like any other name: it becomes a **required `string`** only when that name is not already present from `{{var}}` / `{{var:type}}` or from a **condition-only** `{{#if name}}` (which infers optional `boolean` first—the discriminant clause does not override that).
+
 ## 0.8.0 - 2026-05-04
 
 ### Added

@@ -7,6 +7,7 @@
  *   {{var|default}}      — optional with default value
  *   {{var:type|default}} — typed optional with default
  *   {{#if var}}...{{/if}} — conditional block (renders when var is truthy)
+ *   {{#switch v}}...{{/switch}} — first matching {{#case "lit"}}…{{/case}}; {{#case ""}} matches undefined/null. Optional {{#default}}…{{/default}}
  *   {{> ./partial}}      — resolved at runtime using the partials map
  *   {{> ./partial as x}} — resolved using alias key "x"
  */
@@ -51,6 +52,197 @@ function resolvePartials(
 const IF_OPEN_RE = /\{\{#if\s+(\w+)\}\}/g;
 const IF_TOKEN_RE = /\{\{#if\s+\w+\}\}|\{\{\/if\}\}/g;
 const IF_CLOSE = "{{/if}}";
+
+const SWITCH_OPEN_RE = /\{\{#switch\s+(\w+)\}\}/g;
+const SWITCH_TOKEN_RE = /\{\{#switch\s+\w+\}\}|\{\{\/switch\}\}/g;
+const SWITCH_CLOSE = "{{/switch}}";
+
+const CASE_OPEN_RE = /^\{\{#case\s+(?:"([^"]*)"|'([^']*)'|(\w+))\s*\}\}/;
+const CASE_CLOSE = "{{/case}}";
+const DEFAULT_OPEN = "{{#default}}";
+const DEFAULT_CLOSE = "{{/default}}";
+
+function switchDiscriminantMatches(value: unknown, literal: string): boolean {
+  if (value === undefined || value === null) {
+    return literal === "";
+  }
+  return String(value) === literal;
+}
+
+/** Find end index of `{{/case}}` matching the opening `#case` at `bodyStart` (nested cases balanced). */
+function findClosingCaseEnd(s: string, bodyStart: number): number {
+  let i = bodyStart;
+  let depth = 1;
+  while (i < s.length) {
+    const slice = s.slice(i);
+    const caseOpen = slice.match(CASE_OPEN_RE);
+    if (caseOpen) {
+      depth++;
+      i += caseOpen[0].length;
+      continue;
+    }
+    if (slice.startsWith(CASE_CLOSE)) {
+      depth--;
+      if (depth === 0) return i;
+      i += CASE_CLOSE.length;
+      continue;
+    }
+    i++;
+  }
+  return -1;
+}
+
+/** Find end index of `{{/default}}` matching nested `{{#default}}`. */
+function findClosingDefaultEnd(s: string, bodyStart: number): number {
+  let i = bodyStart;
+  let depth = 1;
+  while (i < s.length) {
+    const slice = s.slice(i);
+    if (slice.startsWith(DEFAULT_OPEN)) {
+      depth++;
+      i += DEFAULT_OPEN.length;
+      continue;
+    }
+    if (slice.startsWith(DEFAULT_CLOSE)) {
+      depth--;
+      if (depth === 0) return i;
+      i += DEFAULT_CLOSE.length;
+      continue;
+    }
+    i++;
+  }
+  return -1;
+}
+
+type SwitchBranch = { literal: string | null; body: string };
+
+/**
+ * Parse the inner of `{{#switch v}}` … `{{/switch}}` into ordered case/default branches.
+ */
+function parseSwitchBranches(inner: string): SwitchBranch[] {
+  const branches: SwitchBranch[] = [];
+  let pos = 0;
+  const len = inner.length;
+
+  const skipWs = () => {
+    while (pos < len && /\s/.test(inner[pos] ?? "")) pos++;
+  };
+
+  while (pos < len) {
+    skipWs();
+    if (pos >= len) break;
+
+    const slice = inner.slice(pos);
+    const caseM = slice.match(CASE_OPEN_RE);
+    if (caseM) {
+      const lit = caseM[1] ?? caseM[2] ?? caseM[3] ?? "";
+      const openLen = caseM[0].length;
+      const bodyStart = pos + openLen;
+      const closeIdx = findClosingCaseEnd(inner, bodyStart);
+      if (closeIdx === -1) break;
+      branches.push({
+        literal: lit,
+        body: inner.slice(bodyStart, closeIdx),
+      });
+      pos = closeIdx + CASE_CLOSE.length;
+      continue;
+    }
+
+    if (slice.startsWith(DEFAULT_OPEN)) {
+      const bodyStart = pos + DEFAULT_OPEN.length;
+      const closeIdx = findClosingDefaultEnd(inner, bodyStart);
+      if (closeIdx === -1) break;
+      branches.push({
+        literal: null,
+        body: inner.slice(bodyStart, closeIdx),
+      });
+      pos = closeIdx + DEFAULT_CLOSE.length;
+      continue;
+    }
+
+    // Unrecognized tail — stop parsing branches
+    break;
+  }
+
+  return branches;
+}
+
+function findClosingSwitchIndex(input: string, blockStart: number): number {
+  SWITCH_TOKEN_RE.lastIndex = blockStart;
+  let depth = 1;
+  while (true) {
+    const token = SWITCH_TOKEN_RE.exec(input);
+    if (token === null) break;
+    if (token[0] === SWITCH_CLOSE) {
+      depth--;
+      if (depth === 0) return token.index;
+    } else {
+      depth++;
+    }
+  }
+  return -1;
+}
+
+/**
+ * Render `{{#switch var}}...{{/switch}}`: first matching `{{#case "x"}}` / `{{#case 'x'}}` / `{{#case x}}`,
+ * else `{{#default}}`. Nested `#switch` inside the chosen branch is expanded recursively.
+ * Used together with `renderConditionals` in a loop until stable so that
+ * switches inside falsy `#if` branches are never expanded, while `#if` inside
+ * chosen `case` bodies still run after the switch is resolved.
+ */
+function renderSwitchBlocks(
+  input: string,
+  flat: Record<string, unknown>,
+): string {
+  let result = "";
+  let cursor = 0;
+  while (cursor < input.length) {
+    SWITCH_OPEN_RE.lastIndex = cursor;
+    const open = SWITCH_OPEN_RE.exec(input);
+    if (!open) {
+      result += input.slice(cursor);
+      break;
+    }
+    result += input.slice(cursor, open.index);
+
+    const varName = open[1] as string;
+    const blockStart = open.index + open[0].length;
+    const closeIdx = findClosingSwitchIndex(input, blockStart);
+    if (closeIdx === -1) {
+      result += input.slice(open.index);
+      break;
+    }
+
+    const inner = input.slice(blockStart, closeIdx);
+    const disc = flat[varName];
+    const branches = parseSwitchBranches(inner);
+
+    let chosen: string | null = null;
+    for (const br of branches) {
+      if (br.literal !== null) {
+        if (switchDiscriminantMatches(disc, br.literal)) {
+          chosen = br.body;
+          break;
+        }
+      }
+    }
+    if (chosen === null) {
+      for (const br of branches) {
+        if (br.literal === null) {
+          chosen = br.body;
+          break;
+        }
+      }
+    }
+
+    if (chosen !== null) {
+      result += renderSwitchBlocks(chosen, flat);
+    }
+
+    cursor = closeIdx + SWITCH_CLOSE.length;
+  }
+  return result;
+}
 
 /**
  * Render `{{#if var}}...{{/if}}` blocks with proper nesting support.
@@ -156,11 +348,15 @@ export function renderTemplate<T extends object>(
     result = resolvePartials(result, partials, new Set());
   }
 
-  // Process conditional blocks: {{#if var}}...{{/if}}
-  // Uses a depth counter so each {{#if}} pairs with its matching {{/if}}.
-  // A naive lazy regex would mispair the outer {{#if}} with the FIRST nested
-  // {{/if}}, leaving an orphan closing tag in the output.
-  result = renderConditionals(result, flat);
+  // Alternate conditionals and switches until stable so:
+  // - `{{#if false}}...{{#switch}}...{{/if}}` never expands the inner switch
+  // - `{{#switch}}...{{#case}}{{#if}}...{{/if}}...` still runs `#if` after case is chosen
+  let prev = "";
+  while (prev !== result) {
+    prev = result;
+    result = renderConditionals(result, flat);
+    result = renderSwitchBlocks(result, flat);
+  }
 
   // Substitute variables: {{var}}, {{var:type}}, {{var|default}}, {{var:type|default}}
   result = result.replace(

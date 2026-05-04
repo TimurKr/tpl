@@ -5,10 +5,12 @@ import { INCLUDE_RE, parseIncludeExpression } from "./patterns.js";
 import type { ParsedTemplate, VariableDef, VariableType } from "./types.js";
 
 // Matches {{var}}, {{var:type}}, {{var|default}}, {{var:type|default}}
-// Does NOT match {{> include}}, {{#if}}, {{/if}}
+// Does NOT match {{> include}}, {{#if}}, {{/if}}, {{#switch}}, case/default tags
 const VARIABLE_RE = /\{\{([^>}#/][^}]*?)\}\}/g;
 // Matches {{#if varName}} to detect conditional variables
 const CONDITIONAL_RE = /\{\{#if\s+(\w+)\}\}/g;
+// Matches {{#switch varName}} — discriminant is a normal template variable (usually string)
+const SWITCH_RE = /\{\{#switch\s+(\w+)\}\}/g;
 
 /** Supported file extensions for .tpl.* files */
 export const SUPPORTED_EXTENSIONS = ["md", "mdx", "txt", "html"] as const;
@@ -164,6 +166,12 @@ export async function parseTemplate(
     if (name) conditionalVars.add(name);
   }
 
+  const switchDiscriminants = new Set<string>();
+  for (const match of content.matchAll(SWITCH_RE)) {
+    const name = (match[1] ?? "").trim();
+    if (name) switchDiscriminants.add(name);
+  }
+
   // Collect all non-include, non-conditional variable expressions
   const seen = new Map<string, VariableDef>();
   for (const match of content.matchAll(VARIABLE_RE)) {
@@ -188,6 +196,13 @@ export async function parseTemplate(
   for (const condVar of conditionalVars) {
     if (!seen.has(condVar)) {
       seen.set(condVar, { name: condVar, type: "boolean", optional: true });
+    }
+  }
+
+  // {{#switch discriminant}} — discriminant is required unless declared elsewhere
+  for (const d of switchDiscriminants) {
+    if (!seen.has(d)) {
+      seen.set(d, { name: d, type: "string", optional: false });
     }
   }
 
