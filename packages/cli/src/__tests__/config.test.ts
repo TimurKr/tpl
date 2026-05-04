@@ -140,4 +140,13 @@ describe("buildOptions", () => {
       _prompts: "",
     });
   });
+
+  it("passes through importSpecifierExtension and postprocess", () => {
+    const opts = buildOptions("/project", {
+      importSpecifierExtension: "ts",
+      postprocess: "./scripts/tpl-postprocess.mjs",
+    });
+    expect(opts.importSpecifierExtension).toBe("ts");
+    expect(opts.postprocess).toBe("./scripts/tpl-postprocess.mjs");
+  });
 });

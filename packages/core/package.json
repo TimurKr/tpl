@@ -1,6 +1,6 @@
 {
   "name": "@tpl/core",
-  "version": "0.7.2",
+  "version": "0.8.0",
   "description": "Core parser and codegen engine for TPL — The Prompting Library.",
   "type": "module",
   "main": "./dist/index.js",
@@ -9,6 +9,10 @@
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
+    },
+    "./runtime": {
+      "import": "./dist/runtime.js",
+      "types": "./dist/runtime.d.ts"
     }
   },
   "files": [

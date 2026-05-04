@@ -29,6 +29,9 @@ export interface ParsedTemplate {
   rawContent: string;
 }
 
+/** File extension used in relative imports between generated `.tpl.gen.ts` files. */
+export type ImportSpecifierExtension = "js" | "ts";
+
 export interface GenerateOptions {
   rootDir: string;
   /** Absolute path to the generated barrel file (e.g. /project/lib/tpl.gen.ts) */
@@ -38,6 +41,19 @@ export interface GenerateOptions {
   pattern?: string;
   ignore?: string[];
   namespaceAliases?: Record<string, string>;
+  /**
+   * Extension for relative imports between generated modules (barrel ↔ colocated builders).
+   * - `"js"` (default): matches TypeScript emit for `moduleResolution` Node16/NodeNext — `./x.js` resolves to `x.ts`.
+   * - `"ts"`: use explicit `.ts` specifiers for bundlers (e.g. some Turbopack setups) that do not rewrite `.js` → `.ts`.
+   */
+  importSpecifierExtension?: ImportSpecifierExtension;
+  /**
+   * Path to an ES module (relative to project root) that transforms each generated file
+   * before write / check. Must export `default` or `transformGenerated` as
+   * `(filePath, content, { rootDir }) => string`. Use plain `.mjs`/`.cjs` so Node can load it.
+   * `tpl check` runs the same transform as `tpl generate` so drift detection matches your pipeline.
+   */
+  postprocess?: string;
 }
 
 export interface TplConfig {
@@ -48,6 +64,10 @@ export interface TplConfig {
   pattern?: string;
   ignore?: string[];
   namespaceAliases?: Record<string, string>;
+  /** Same as {@link GenerateOptions.importSpecifierExtension}. */
+  importSpecifierExtension?: ImportSpecifierExtension;
+  /** Same as {@link GenerateOptions.postprocess}. */
+  postprocess?: string;
 }
 
 export type CheckIssueKind = "missing" | "changed" | "stale";

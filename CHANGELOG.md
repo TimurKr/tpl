@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented here.
 
+## 0.8.0 - 2026-05-04
+
+### Added
+
+- **`@tpl/core/runtime` subpath** — dependency-free build of `renderTemplate` / `flattenVars` (and `patterns`) only. Published `the-prompting-library/runtime` now bundles this entry instead of the full `@tpl/core` graph, so **fast-glob and other generator dependencies are not pulled into app or browser bundles** when you import the runtime.
+- **`importSpecifierExtension`** in `package.json` → `tpl` (`"js"` default, `"ts"` optional). Controls the extension on relative imports between generated `.tpl.gen.ts` files and the manifest. Use `"ts"` when your bundler (e.g. some Turbopack setups) does not resolve emitted `./foo.js` imports to `./foo.ts` sources.
+- **`postprocess`** in `package.json` → `tpl`: path to an ES module (e.g. `.mjs`) that transforms each generated file before write. Export `default` or `transformGenerated` as `(filePath, content, { rootDir }) => string`. **`tpl check` runs the same postprocess as `tpl generate`**, so you can drop custom check wrappers that reimplemented normalization.
+
+### Changed
+
+- `the-prompting-library/runtime` is built with `platform: "neutral"` and only inlines `@tpl/core/runtime`, improving compatibility with Next.js and other app bundles that previously tripped on dynamic `require` paths from the old fat runtime bundle.
+
 ## 0.7.2 - 2026-05-02
 
 ### Fixed

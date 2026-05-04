@@ -3,6 +3,7 @@ import { dirname } from "node:path";
 import fg from "fast-glob";
 import { generateFiles } from "./codegen.js";
 import { parseTemplate } from "./parser.js";
+import { applyPostprocess, loadPostprocess } from "./postprocess.js";
 import type {
   CheckIssue,
   CheckResult,
@@ -66,8 +67,13 @@ export async function generate(
     templates.map((t) => [t.functionName, t]),
   );
 
-  const files = generateFiles(templates, allTemplates, options);
+  let files = generateFiles(templates, allTemplates, options);
   const issues = collectGenerateIssues(files);
+  const postprocess = await loadPostprocess(
+    options.rootDir,
+    options.postprocess,
+  );
+  files = applyPostprocess(files, postprocess, options.rootDir);
 
   // Clean out stale colocated prompt files before writing so deleted prompts don't linger.
   const existingGenerated = await fg("**/*.tpl.gen.ts", {
@@ -118,7 +124,12 @@ export async function check(options: GenerateOptions): Promise<CheckResult> {
     templates.map((t) => [t.functionName, t]),
   );
 
-  const files = generateFiles(templates, allTemplates, options);
+  let files = generateFiles(templates, allTemplates, options);
+  const postprocess = await loadPostprocess(
+    options.rootDir,
+    options.postprocess,
+  );
+  files = applyPostprocess(files, postprocess, options.rootDir);
   const desiredPaths = new Set(files.keys());
   const issues: CheckIssue[] = [];
 

@@ -336,6 +336,20 @@ describe("generateFiles", () => {
     expect(index).toContain(`export * from "../bar.tpl.gen.js"`);
   });
 
+  it("index uses .ts in relative imports when importSpecifierExtension is ts", () => {
+    const a = makeTemplate({ functionName: "foo", rawContent: "Foo" });
+    const b = makeTemplate({ functionName: "bar", rawContent: "Bar" });
+    const tsOpts: GenerateOptions = {
+      ...opts,
+      importSpecifierExtension: "ts",
+    };
+    const files = generateFiles([a, b], makeMap([a, b]), tsOpts);
+    const index = files.get(tsOpts.outputFile)!;
+    expect(index).toContain(`export * from "../foo.tpl.gen.ts"`);
+    expect(index).toContain(`export * from "../bar.tpl.gen.ts"`);
+    expect(index).toContain(`import { prompts } from "./lib/tpl.gen.ts";`);
+  });
+
   it("index imports build functions and defines nested prompts const", () => {
     const a = makeTemplate({
       functionName: "featuresAuthWelcomeEmail",

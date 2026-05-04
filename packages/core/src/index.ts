@@ -18,6 +18,7 @@ export type {
   CheckIssueKind,
   CheckResult,
   GenerateOptions,
+  ImportSpecifierExtension,
   ParsedTemplate,
   TplConfig,
   VariableDef,

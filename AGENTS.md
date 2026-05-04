@@ -24,9 +24,10 @@ Both `packages/core` and `packages/cli` are published under the same npm package
 | `packages/core/src/parser.ts` | Parses `.tpl.md` frontmatter + variable/include expressions |
 | `packages/core/src/codegen.ts` | Generates `.ts` files from parsed templates |
 | `packages/core/src/resolver.ts` | Resolves relative `{{> ./partial}}` includes, detects cycles |
-| `packages/core/src/runtime.ts` | `renderTemplate` — used by generated files at runtime |
+| `packages/core/src/runtime.ts` | `renderTemplate` — used by generated files at runtime (also built as `@tpl/core/runtime`) |
+| `packages/core/src/postprocess.ts` | Optional `postprocess` hook loader; same pipeline for `generate` and `check` |
 | `packages/core/src/patterns.ts` | Shared regex patterns (import here, never redefine inline) |
-| `packages/cli/src/commands/` | `generate` and `watch` CLI commands |
+| `packages/cli/src/commands/` | `generate`, `check`, and `watch` CLI commands |
 
 ## Working in the repo
 
@@ -47,8 +48,10 @@ bun test packages/cli
 The example app generates sibling `*.tpl.gen.ts` files and a manifest at `apps/example/lib/tpl.gen.ts`. If you change codegen behaviour, re-run the smoke test:
 
 ```bash
-node packages/cli/dist/index.cjs generate --cwd apps/example
+node packages/cli/dist/index.cjs check --cwd apps/example
 ```
+
+(`generate` also works; CI uses `check` to assert outputs match the configured pipeline.)
 
 ## Template syntax (for reference)
 

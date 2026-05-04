@@ -50,5 +50,7 @@ export function buildOptions(
     pattern: config.pattern ?? "**/*.tpl.{md,mdx,txt,html}",
     ignore: config.ignore ?? [],
     namespaceAliases: config.namespaceAliases ?? {},
+    importSpecifierExtension: config.importSpecifierExtension,
+    postprocess: config.postprocess,
   };
 }

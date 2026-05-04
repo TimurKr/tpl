@@ -4,4 +4,4 @@
  * Generated files import:
  *   import { renderTemplate } from "the-prompting-library/runtime";
  */
-export { flattenVars, renderTemplate } from "@tpl/core";
+export { flattenVars, renderTemplate } from "@tpl/core/runtime";

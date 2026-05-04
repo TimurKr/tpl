@@ -466,5 +466,64 @@ describe("collector", () => {
         filePath: join(rootDir, "src/b.tpl.gen.ts"),
       });
     });
+
+    it("passes check when postprocess matches generate", async () => {
+      await writeTemplate("src/greet.tpl.md", "Hello {{name}}");
+      const out = outputFile();
+      const pp = join(rootDir, "tpl.postprocess.mjs");
+      await writeFile(
+        pp,
+        `export default function (filePath, content) {
+  void filePath;
+  return "// post\\n" + content;
+}
+`,
+        "utf-8",
+      );
+
+      await generate({
+        rootDir,
+        outputFile: out,
+        postprocess: "./tpl.postprocess.mjs",
+      });
+
+      const gen = await readFile(
+        join(rootDir, "src/greet.tpl.gen.ts"),
+        "utf-8",
+      );
+      expect(gen.startsWith("// post\n")).toBe(true);
+
+      const result = await check({
+        rootDir,
+        outputFile: out,
+        postprocess: "./tpl.postprocess.mjs",
+      });
+      expect(result.ok).toBe(true);
+    });
+
+    it("fails check without postprocess after generate with postprocess", async () => {
+      await writeTemplate("src/greet.tpl.md", "Hello {{name}}");
+      const out = outputFile();
+      const pp = join(rootDir, "tpl.postprocess.mjs");
+      await writeFile(
+        pp,
+        `export default function (filePath, content) {
+  void filePath;
+  return "// post\\n" + content;
+}
+`,
+        "utf-8",
+      );
+
+      await generate({
+        rootDir,
+        outputFile: out,
+        postprocess: "./tpl.postprocess.mjs",
+      });
+
+      const result = await check({ rootDir, outputFile: out });
+      expect(result.ok).toBe(false);
+      expect(result.issues.map((i) => i.kind)).toContain("changed");
+    });
   });
 });
