@@ -26,6 +26,12 @@
 // import { renderPrompt } from "../lib/tpl.gen.js";
 //
 // const prompt = renderPrompt("auth.welcomeEmail", { userName: "Alice", ... });
+//
+// Switch-only variables infer exported literal-union types:
+// import type { SharedResponseStyleStyle } from "../lib/tpl.gen.js";
+//
+// const style: SharedResponseStyleStyle = "concise";
+// const instructions = prompts.shared.responseStyle({ style });
 
 console.log("Run `bun run dev` or `tpl watch` during development.");
 console.log("Run `tpl generate` in CI (see build script on the monorepo).");

@@ -12,10 +12,11 @@
 
 import { renderTemplate } from "the-prompting-library/runtime";
 import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildSharedBasePersonaPrompt } from "../../shared/base-persona.tpl.gen.js";
 
-const TEMPLATE = readFileSync(fileURLToPath(new URL("./search-query.tpl.md", import.meta.url)), "utf8");
+const TEMPLATE = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "./search-query.tpl.md"), "utf8");
 
 /**
  * Semantic search query rewriter

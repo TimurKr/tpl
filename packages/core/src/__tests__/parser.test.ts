@@ -240,14 +240,46 @@ describe("parseTemplate", () => {
     expect(v?.type).toBe("boolean");
   });
 
-  it("infers {{#switch}} discriminant as required string when not declared elsewhere", async () => {
+  it("infers switch-only discriminant as required case literal union", async () => {
     const path = await write(
       "mode.tpl.md",
-      '{{#switch mode}}{{#case "x"}}X{{/case}}{{/switch}}',
+      "{{#switch mode}}{{#case \"x\"}}X{{/case}}{{#case 'y'}}Y{{/case}}{{#case z}}Z{{/case}}{{/switch}}",
     );
     const result = await parseTemplate(path, tmpDir);
     const v = result.variables.find((x) => x.name === "mode");
-    expect(v).toMatchObject({ name: "mode", type: "string", optional: false });
+    expect(v).toMatchObject({
+      name: "mode",
+      type: '"x" | "y" | "z"',
+      optional: false,
+    });
+  });
+
+  it("makes switch-only discriminant optional when every switch has a default", async () => {
+    const path = await write(
+      "mode-default.tpl.md",
+      '{{#switch mode}}{{#case "x"}}X{{/case}}{{#default}}Fallback{{/default}}{{/switch}}',
+    );
+    const result = await parseTemplate(path, tmpDir);
+    const v = result.variables.find((x) => x.name === "mode");
+    expect(v).toMatchObject({
+      name: "mode",
+      type: '"x"',
+      optional: true,
+    });
+  });
+
+  it("keeps switch-only discriminant required when any matching switch has no default", async () => {
+    const path = await write(
+      "mode-mixed-default.tpl.md",
+      '{{#switch mode}}{{#case "x"}}X{{/case}}{{#default}}Fallback{{/default}}{{/switch}}\n{{#switch mode}}{{#case "y"}}Y{{/case}}{{/switch}}',
+    );
+    const result = await parseTemplate(path, tmpDir);
+    const v = result.variables.find((x) => x.name === "mode");
+    expect(v).toMatchObject({
+      name: "mode",
+      type: '"x" | "y"',
+      optional: false,
+    });
   });
 
   it("keeps existing variable declaration when discriminant also appears as {{var}}", async () => {

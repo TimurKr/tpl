@@ -145,7 +145,8 @@ describe("collector", () => {
       expect(content).toContain("AUTO-GENERATED");
       expect(content).toContain("renderTemplate");
       expect(content).toContain(`readFileSync`);
-      expect(content).toContain(`new URL("./greet.tpl.md", import.meta.url)`);
+      expect(content).toContain(`fileURLToPath(import.meta.url)`);
+      expect(content).toContain(`"./greet.tpl.md"`);
       expect(content).not.toContain(`import TEMPLATE from`);
     });
 

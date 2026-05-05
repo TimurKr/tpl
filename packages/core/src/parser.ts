@@ -9,8 +9,10 @@ import type { ParsedTemplate, VariableDef, VariableType } from "./types.js";
 const VARIABLE_RE = /\{\{([^>}#/][^}]*?)\}\}/g;
 // Matches {{#if varName}} to detect conditional variables
 const CONDITIONAL_RE = /\{\{#if\s+(\w+)\}\}/g;
-// Matches {{#switch varName}} — discriminant is a normal template variable (usually string)
+// Matches switch tags and branches so discriminants can infer literal unions.
 const SWITCH_RE = /\{\{#switch\s+(\w+)\}\}/g;
+const SWITCH_TOKEN_RE =
+  /\{\{#switch\s+(\w+)\}\}|\{\{#case\s+([^}]+?)\}\}|\{\{#default\s*\}\}|\{\{\/switch\}\}/g;
 
 /** Supported file extensions for .tpl.* files */
 export const SUPPORTED_EXTENSIONS = ["md", "mdx", "txt", "html"] as const;
@@ -151,6 +153,74 @@ function parseVarExpr(expr: string): VariableDef {
     : { name, type, optional: false };
 }
 
+interface SwitchUsage {
+  name: string;
+  cases: string[];
+  hasDefault: boolean;
+}
+
+function parseCaseLiteral(raw: string): string {
+  const value = raw.trim();
+  const quote = value[0];
+  if (
+    (quote === `"` || quote === `'`) &&
+    value.length >= 2 &&
+    value[value.length - 1] === quote
+  ) {
+    return value.slice(1, -1);
+  }
+  return value;
+}
+
+function formatStringLiteralUnion(cases: string[]): string {
+  return cases.map((value) => JSON.stringify(value)).join(" | ");
+}
+
+function collectSwitchUsages(content: string): SwitchUsage[] {
+  const usages: SwitchUsage[] = [];
+  const stack: Array<{
+    name: string;
+    cases: Set<string>;
+    hasDefault: boolean;
+  }> = [];
+
+  for (const match of content.matchAll(SWITCH_TOKEN_RE)) {
+    const token = match[0];
+    const switchName = match[1]?.trim();
+    const caseValue = match[2];
+
+    if (switchName) {
+      stack.push({ name: switchName, cases: new Set(), hasDefault: false });
+      continue;
+    }
+
+    const current = stack.at(-1);
+    if (!current) continue;
+
+    if (caseValue !== undefined) {
+      current.cases.add(parseCaseLiteral(caseValue));
+      continue;
+    }
+
+    if (token.startsWith("{{#default")) {
+      current.hasDefault = true;
+      continue;
+    }
+
+    if (token === "{{/switch}}") {
+      const completed = stack.pop();
+      if (!completed) continue;
+      usages.push({
+        name: completed.name,
+        cases: [...completed.cases],
+        hasDefault: completed.hasDefault,
+      });
+    }
+  }
+
+  return usages;
+}
+
 export async function parseTemplate(
   filePath: string,
   rootDir: string,
@@ -166,10 +236,30 @@ export async function parseTemplate(
     if (name) conditionalVars.add(name);
   }
 
+  const switchUsages = collectSwitchUsages(content);
   const switchDiscriminants = new Set<string>();
+  const switchCases = new Map<string, Set<string>>();
+  const switchDefaultCounts = new Map<string, number>();
+  const switchUsageCounts = new Map<string, number>();
   for (const match of content.matchAll(SWITCH_RE)) {
     const name = (match[1] ?? "").trim();
     if (name) switchDiscriminants.add(name);
+  }
+  for (const usage of switchUsages) {
+    switchDiscriminants.add(usage.name);
+    switchUsageCounts.set(
+      usage.name,
+      (switchUsageCounts.get(usage.name) ?? 0) + 1,
+    );
+    if (usage.hasDefault) {
+      switchDefaultCounts.set(
+        usage.name,
+        (switchDefaultCounts.get(usage.name) ?? 0) + 1,
+      );
+    }
+    const cases = switchCases.get(usage.name) ?? new Set<string>();
+    for (const value of usage.cases) cases.add(value);
+    switchCases.set(usage.name, cases);
   }
 
   // Collect all non-include, non-conditional variable expressions
@@ -199,10 +289,20 @@ export async function parseTemplate(
     }
   }
 
-  // {{#switch discriminant}} — discriminant is required unless declared elsewhere
+  // {{#switch discriminant}} — switch-only discriminants infer a literal union
+  // from their cases. A switch with a default branch can be omitted.
   for (const d of switchDiscriminants) {
     if (!seen.has(d)) {
-      seen.set(d, { name: d, type: "string", optional: false });
+      const cases = [...(switchCases.get(d) ?? [])];
+      const type =
+        cases.length > 0 ? formatStringLiteralUnion(cases) : "string";
+      const usageCount = switchUsageCounts.get(d) ?? 0;
+      const defaultCount = switchDefaultCounts.get(d) ?? 0;
+      seen.set(d, {
+        name: d,
+        type,
+        optional: usageCount > 0 && defaultCount === usageCount,
+      });
     }
   }
 

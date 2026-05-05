@@ -22,5 +22,6 @@ bun run --cwd apps/example generate
 - `src/features/auth/password-reset.tpl.md` — password reset prompt
 - `src/features/search/search-query.tpl.md` — semantic search rewriter
 - `src/features/support/ticket-classifier.tpl.md` — support ticket classifier
+- `src/shared/response-style.tpl.md` — switch-only variable inference example; `style` generates an exported string-literal union type
 
 After `tpl watch` or `tpl generate`, each template gets a sibling `*.tpl.gen.ts` file. The generated manifest lives at `lib/tpl.gen.ts` (see `"tpl".output` in `package.json`).

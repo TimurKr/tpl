@@ -12,11 +12,12 @@
 
 import { renderTemplate } from "the-prompting-library/runtime";
 import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildSharedAssistantPrompt } from "../../shared/assistant.tpl.gen.js";
 import type { SharedAssistantVariables } from "../../shared/assistant.tpl.gen.js";
 
-const TEMPLATE = readFileSync(fileURLToPath(new URL("./ticket-summary.tpl.md", import.meta.url)), "utf8");
+const TEMPLATE = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "./ticket-summary.tpl.md"), "utf8");
 
 /**
  * Summarize a resolved support ticket

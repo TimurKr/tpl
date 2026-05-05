@@ -12,9 +12,10 @@
 
 import { renderTemplate } from "the-prompting-library/runtime";
 import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const TEMPLATE = readFileSync(fileURLToPath(new URL("./ticket-classifier.tpl.md", import.meta.url)), "utf8");
+const TEMPLATE = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "./ticket-classifier.tpl.md"), "utf8");
 
 /**
  * Support ticket classifier

@@ -185,6 +185,48 @@ describe("generateFiles", () => {
     expect(prompt).toContain("  tags: string[];");
   });
 
+  it("generates typed field for switch-inferred string literal union", () => {
+    const t = makeTemplate({
+      functionName: "tone",
+      variables: [varDef("tone", { type: '"friendly" | "formal"' })],
+      rawContent:
+        '{{#switch tone}}{{#case "friendly"}}Hi{{/case}}{{#case "formal"}}Hello{{/case}}{{/switch}}',
+    });
+    const files = generateFiles([t], makeMap([t]), opts);
+    const prompt = files.get(generatedPath(t))!;
+    expect(prompt).toContain('export type ToneTone = "friendly" | "formal";');
+    expect(prompt).toContain("  tone: ToneTone;");
+  });
+
+  it("generates optional field for defaulted switch-inferred union", () => {
+    const t = makeTemplate({
+      functionName: "tone",
+      variables: [
+        varDef("tone", { type: '"friendly" | "formal"', optional: true }),
+      ],
+      rawContent:
+        '{{#switch tone}}{{#case "friendly"}}Hi{{/case}}{{#default}}Hello{{/default}}{{/switch}}',
+    });
+    const files = generateFiles([t], makeMap([t]), opts);
+    const prompt = files.get(generatedPath(t))!;
+    expect(prompt).toContain('export type ToneTone = "friendly" | "formal";');
+    expect(prompt).toContain("  tone?: ToneTone;");
+  });
+
+  it("manifest explicitly re-exports generated prompt types", () => {
+    const t = makeTemplate({
+      functionName: "tone",
+      variables: [varDef("tone", { type: '"friendly" | "formal"' })],
+      rawContent:
+        '{{#switch tone}}{{#case "friendly"}}Hi{{/case}}{{#case "formal"}}Hello{{/case}}{{/switch}}',
+    });
+    const files = generateFiles([t], makeMap([t]), opts);
+    const index = files.get(opts.outputFile)!;
+    expect(index).toContain(
+      'export type { ToneVariables, ToneTone } from "../tone.tpl.gen.js";',
+    );
+  });
+
   it("generates function using renderTemplate with vars parameter", () => {
     const t = makeTemplate({
       functionName: "greet",
@@ -224,9 +266,10 @@ describe("generateFiles", () => {
     const files = generateFiles([t], makeMap([t]), opts);
     const prompt = files.get(generatedPath(t))!;
     expect(prompt).toContain(`import { readFileSync } from "node:fs";`);
+    expect(prompt).toContain(`import { dirname, join } from "node:path";`);
     expect(prompt).toContain(`import { fileURLToPath } from "node:url";`);
     expect(prompt).toContain(
-      `const TEMPLATE = readFileSync(fileURLToPath(new URL("./greet.tpl.md", import.meta.url)), "utf8");`,
+      `const TEMPLATE = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "./greet.tpl.md"), "utf8");`,
     );
     expect(prompt).not.toContain(`import TEMPLATE from`);
   });
@@ -282,6 +325,10 @@ describe("generateFiles", () => {
     expect(dts).toContain(`declare module "*.tpl.txt"`);
     expect(dts).toContain(`declare module "*.tpl.html"`);
     expect(dts).toContain(`export default content`);
+    expect(dts).toContain(`declare module "node:fs"`);
+    expect(dts).toContain(`declare module "node:path"`);
+    expect(dts).toContain(`declare module "node:url"`);
+    expect(dts).toContain(`interface ImportMeta { url: string; }`);
   });
 
   it("supports custom typesOutputFile", () => {

@@ -12,11 +12,12 @@
 
 import { renderTemplate } from "the-prompting-library/runtime";
 import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildSharedBasePersonaPrompt } from "./base-persona.tpl.gen.js";
 import { buildSharedOutputFormatPrompt } from "./output-format.tpl.gen.js";
 
-const TEMPLATE = readFileSync(fileURLToPath(new URL("./assistant.tpl.md", import.meta.url)), "utf8");
+const TEMPLATE = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "./assistant.tpl.md"), "utf8");
 
 /**
  * Full assistant persona with configurable tone and output format

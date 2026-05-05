@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented here.
 
+## 0.11.0 - 2026-05-05
+
+### Added
+
+- Switch-only discriminants now infer string literal unions from their `{{#case ...}}` values in generated TypeScript. For example, `{{#switch tone}}` with `{{#case "friendly"}}` and `{{#case "formal"}}` now generates `tone: "friendly" | "formal"` instead of `tone: string`.
+- Switch-only discriminants become optional when every switch for that variable has a `{{#default}}` branch, preserving type safety while allowing callers to rely on the default path.
+- Generated prompt modules now export inferred switch literal unions as named type aliases, and the generated manifest explicitly re-exports prompt variable interfaces and inferred aliases so app code can import them from `lib/tpl.gen.ts`.
+- The example app now includes a `shared/response-style.tpl.md` switch template demonstrating inferred literal-union types with a default branch.
+
 ## 0.10.0 - 2026-05-05
 
 ### Changed

@@ -1,4 +1,10 @@
-export type VariableType = "string" | "number" | "boolean" | "string[]";
+export type VariableType =
+  | "string"
+  | "number"
+  | "boolean"
+  | "string[]"
+  // Generated TypeScript type text, used for inferred string literal unions.
+  | (string & {});
 
 export interface VariableDef {
   name: string;

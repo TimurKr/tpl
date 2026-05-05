@@ -12,11 +12,12 @@
 
 import { renderTemplate } from "the-prompting-library/runtime";
 import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildAuthWelcomeEmailPrompt } from "./welcome-email/index.tpl.gen.js";
 import type { AuthWelcomeEmailVariables } from "./welcome-email/index.tpl.gen.js";
 
-const TEMPLATE = readFileSync(fileURLToPath(new URL("./onboarding-sequence.tpl.md", import.meta.url)), "utf8");
+const TEMPLATE = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "./onboarding-sequence.tpl.md"), "utf8");
 
 /**
  * Auth onboarding sequence composed from folder-index prompts

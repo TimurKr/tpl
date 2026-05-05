@@ -12,11 +12,12 @@
 
 import { renderTemplate } from "the-prompting-library/runtime";
 import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildSharedBasePersonaPrompt } from "../../../shared/base-persona.tpl.gen.js";
 import { buildAuthWelcomeEmailTonePrompt } from "./tone.tpl.gen.js";
 
-const TEMPLATE = readFileSync(fileURLToPath(new URL("./index.tpl.md", import.meta.url)), "utf8");
+const TEMPLATE = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "./index.tpl.md"), "utf8");
 
 /**
  * Welcome email for new users
