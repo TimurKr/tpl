@@ -32,6 +32,12 @@ export interface ParsedTemplate {
 /** File extension used in relative imports between generated `.tpl.gen.ts` files. */
 export type ImportSpecifierExtension = "js" | "ts";
 
+/** How generated builders get their template source at runtime. */
+export type TemplateSourceMode = "filesystem" | "import" | "inline";
+
+/** Import attribute type used for source template imports. */
+export type TemplateImportAttributeType = "text" | "raw";
+
 export interface GenerateOptions {
   rootDir: string;
   /** Absolute path to the generated barrel file (e.g. /project/lib/tpl.gen.ts) */
@@ -47,6 +53,18 @@ export interface GenerateOptions {
    * - `"ts"`: use explicit `.ts` specifiers for bundlers (e.g. some Turbopack setups) that do not rewrite `.js` → `.ts`.
    */
   importSpecifierExtension?: ImportSpecifierExtension;
+  /**
+   * How generated builders load template text.
+   * - `"filesystem"` (default): read the source `.tpl.*` file with `readFileSync` at runtime; server-only.
+   * - `"import"`: import the source `.tpl.*` file with an import attribute.
+   * - `"inline"`: embed the template string into the generated builder, avoiding file reads at the cost of duplicating prompt text.
+   */
+  templateSource?: TemplateSourceMode;
+  /**
+   * Import attribute type for source template imports.
+   * Defaults to `"text"`. Use `"raw"` for bundlers that bind raw text imports that way.
+   */
+  templateImportAttributeType?: TemplateImportAttributeType;
   /**
    * Path to an ES module (relative to project root) that transforms each generated file
    * before write / check. Must export `default` or `transformGenerated` as
@@ -66,6 +84,10 @@ export interface TplConfig {
   namespaceAliases?: Record<string, string>;
   /** Same as {@link GenerateOptions.importSpecifierExtension}. */
   importSpecifierExtension?: ImportSpecifierExtension;
+  /** Same as {@link GenerateOptions.templateSource}. */
+  templateSource?: TemplateSourceMode;
+  /** Same as {@link GenerateOptions.templateImportAttributeType}. */
+  templateImportAttributeType?: TemplateImportAttributeType;
   /** Same as {@link GenerateOptions.postprocess}. */
   postprocess?: string;
 }

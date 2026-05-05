@@ -20,6 +20,8 @@ export type {
   GenerateOptions,
   ImportSpecifierExtension,
   ParsedTemplate,
+  TemplateImportAttributeType,
+  TemplateSourceMode,
   TplConfig,
   VariableDef,
   VariableType,

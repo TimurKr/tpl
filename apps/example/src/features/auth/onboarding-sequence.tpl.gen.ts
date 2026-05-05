@@ -11,9 +11,12 @@
 // Docs: https://github.com/timurkr/tpl
 
 import { renderTemplate } from "the-prompting-library/runtime";
-import TEMPLATE from "./onboarding-sequence.tpl.md" with { type: "text" };
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { buildAuthWelcomeEmailPrompt } from "./welcome-email/index.tpl.gen.js";
 import type { AuthWelcomeEmailVariables } from "./welcome-email/index.tpl.gen.js";
+
+const TEMPLATE = readFileSync(fileURLToPath(new URL("./onboarding-sequence.tpl.md", import.meta.url)), "utf8");
 
 /**
  * Auth onboarding sequence composed from folder-index prompts

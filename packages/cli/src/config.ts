@@ -51,6 +51,8 @@ export function buildOptions(
     ignore: config.ignore ?? [],
     namespaceAliases: config.namespaceAliases ?? {},
     importSpecifierExtension: config.importSpecifierExtension,
+    templateSource: config.templateSource,
+    templateImportAttributeType: config.templateImportAttributeType,
     postprocess: config.postprocess,
   };
 }

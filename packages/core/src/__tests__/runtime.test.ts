@@ -35,6 +35,12 @@ describe("flattenVars", () => {
 });
 
 describe("renderTemplate", () => {
+  it("throws a clear error when template source is not a string", () => {
+    expect(() => renderTemplate(undefined as unknown as string, {})).toThrow(
+      "TPL template source must be a string",
+    );
+  });
+
   it("substitutes a plain variable", () => {
     expect(renderTemplate("Hello {{name}}!", { name: "Alice" })).toBe(
       "Hello Alice!",

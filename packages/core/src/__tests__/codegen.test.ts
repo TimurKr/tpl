@@ -214,7 +214,7 @@ describe("generateFiles", () => {
     expect(prompt).not.toContain("(vars:");
   });
 
-  it("imports the source .tpl.md file directly instead of inlining content", () => {
+  it("loads template content from the filesystem by default", () => {
     const t = makeTemplate({
       functionName: "greet",
       filePath: "/project/src/greet.tpl.md",
@@ -223,10 +223,47 @@ describe("generateFiles", () => {
     });
     const files = generateFiles([t], makeMap([t]), opts);
     const prompt = files.get(generatedPath(t))!;
+    expect(prompt).toContain(`import { readFileSync } from "node:fs";`);
+    expect(prompt).toContain(`import { fileURLToPath } from "node:url";`);
     expect(prompt).toContain(
-      `import TEMPLATE from "./greet.tpl.md" with { type: "text" }`,
+      `const TEMPLATE = readFileSync(fileURLToPath(new URL("./greet.tpl.md", import.meta.url)), "utf8");`,
+    );
+    expect(prompt).not.toContain(`import TEMPLATE from`);
+  });
+
+  it("can import template content with configurable import attributes", () => {
+    const t = makeTemplate({
+      functionName: "greet",
+      filePath: "/project/src/greet.tpl.md",
+      variables: [varDef("name")],
+      rawContent: "Hello {{name}}",
+    });
+    const files = generateFiles([t], makeMap([t]), {
+      ...opts,
+      templateSource: "import",
+      templateImportAttributeType: "raw",
+    });
+    const prompt = files.get(generatedPath(t))!;
+    expect(prompt).toContain(
+      `import TEMPLATE from "./greet.tpl.md" with { type: "raw" }`,
     );
     expect(prompt).not.toContain("const TEMPLATE");
+  });
+
+  it("can inline template content when explicitly configured", () => {
+    const t = makeTemplate({
+      functionName: "greet",
+      filePath: "/project/src/greet.tpl.md",
+      variables: [varDef("name")],
+      rawContent: "Hello {{name}}",
+    });
+    const files = generateFiles([t], makeMap([t]), {
+      ...opts,
+      templateSource: "inline",
+    });
+    const prompt = files.get(generatedPath(t))!;
+    expect(prompt).toContain(`const TEMPLATE = "Hello {{name}}";`);
+    expect(prompt).not.toContain(`readFileSync`);
   });
 
   it("includes a triple-slash reference directive to tpl.d.ts", () => {
@@ -258,17 +295,20 @@ describe("generateFiles", () => {
     expect(prompt).toContain(`/// <reference path="./src/tpl.d.ts" />`);
   });
 
-  it("template content is NOT inlined — no backtick escaping needed", () => {
+  it("escapes inline template content as a string literal", () => {
     const t = makeTemplate({
       functionName: "ticked",
       variables: [],
       rawContent: "Use `backticks` and ${template} literals freely.",
     });
-    const files = generateFiles([t], makeMap([t]), opts);
+    const files = generateFiles([t], makeMap([t]), {
+      ...opts,
+      templateSource: "inline",
+    });
     const prompt = files.get(generatedPath(t))!;
-    // Content comes from the imported file at runtime — not escaped in the TS output
-    expect(prompt).not.toContain("\\`backticks\\`");
-    expect(prompt).not.toContain("\\${template}");
+    expect(prompt).toContain(
+      `const TEMPLATE = "Use \`backticks\` and \${template} literals freely.";`,
+    );
   });
 
   it("name collision: generates a single file with both templates + collision warning (no throw)", () => {

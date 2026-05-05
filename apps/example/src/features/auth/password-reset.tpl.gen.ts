@@ -11,8 +11,11 @@
 // Docs: https://github.com/timurkr/tpl
 
 import { renderTemplate } from "the-prompting-library/runtime";
-import TEMPLATE from "./password-reset.tpl.md" with { type: "text" };
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { buildSharedBasePersonaPrompt } from "../../shared/base-persona.tpl.gen.js";
+
+const TEMPLATE = readFileSync(fileURLToPath(new URL("./password-reset.tpl.md", import.meta.url)), "utf8");
 
 /**
  * Password reset email

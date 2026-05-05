@@ -5,6 +5,7 @@ import type {
   ImportSpecifierExtension,
   IncludeDef,
   ParsedTemplate,
+  TemplateSourceMode,
 } from "./types.js";
 
 function toPascalCase(name: string): string {
@@ -46,6 +47,51 @@ function importSuffixForGeneratedModules(
   options: GenerateOptions,
 ): ImportSpecifierExtension {
   return options.importSpecifierExtension === "ts" ? "ts" : "js";
+}
+
+function templateSourceMode(options: GenerateOptions): TemplateSourceMode {
+  return options.templateSource ?? "filesystem";
+}
+
+function templateImportAttribute(options: GenerateOptions): "text" | "raw" {
+  return options.templateImportAttributeType === "raw" ? "raw" : "text";
+}
+
+function templateSourceRuntimeImports(mode: TemplateSourceMode): string[] {
+  if (mode !== "filesystem") return [];
+  return [
+    `import { readFileSync } from "node:fs";`,
+    `import { fileURLToPath } from "node:url";`,
+  ];
+}
+
+function templateImportLine(
+  identifier: string,
+  importPath: string,
+  options: GenerateOptions,
+): string {
+  return `import ${identifier} from "${importPath}" with { type: "${templateImportAttribute(
+    options,
+  )}" };`;
+}
+
+function templateDeclarationLine(
+  identifier: string,
+  template: ParsedTemplate,
+  generatedFile: string,
+  options: GenerateOptions,
+): string {
+  const importPath = relativeImport(dirname(generatedFile), template.filePath);
+  switch (templateSourceMode(options)) {
+    case "import":
+      return templateImportLine(identifier, importPath, options);
+    case "filesystem":
+      return `const ${identifier} = readFileSync(fileURLToPath(new URL(${JSON.stringify(
+        importPath,
+      )}, import.meta.url)), "utf8");`;
+    case "inline":
+      return `const ${identifier} = ${JSON.stringify(template.rawContent)};`;
+  }
 }
 
 /**
@@ -152,7 +198,7 @@ function generateSinglePromptFile(
   const legacyBuildFnName = legacyBuildFunctionName(functionName);
   const interfaceName = `${pascalName}Variables`;
   const relSource = toImportPath(relative(rootDir, filePath));
-  const templateImportPath = relativeImport(dirname(generatedFile), filePath);
+  const sourceMode = templateSourceMode(options);
 
   // Gather direct partial info — may throw on circular/missing includes
   let partialInfos: PartialInfo[];
@@ -226,12 +272,23 @@ function generateSinglePromptFile(
     ...syntaxCommentLines(),
     ``,
     `import { renderTemplate } from "the-prompting-library/runtime";`,
-    `import TEMPLATE from "${templateImportPath}" with { type: "text" };`,
+    ...templateSourceRuntimeImports(sourceMode),
   ];
 
+  if (sourceMode === "import") {
+    lines.push(
+      templateDeclarationLine("TEMPLATE", template, generatedFile, options),
+    );
+  }
   if (buildFnImports.length > 0) lines.push(...buildFnImports);
   if (typeImports.length > 0) lines.push(...typeImports);
   lines.push(``);
+  if (sourceMode !== "import") {
+    lines.push(
+      templateDeclarationLine("TEMPLATE", template, generatedFile, options),
+    );
+    lines.push(``);
+  }
 
   // JSDoc
   lines.push(`/**`);
@@ -297,7 +354,7 @@ function generateSinglePromptFile(
 }
 
 /**
- * Generate a collision file containing both templates with raw imports.
+ * Generate a collision file containing both templates.
  * The duplicate function declarations cause TypeScript errors in the IDE.
  */
 function generateCollisionFile(
@@ -306,6 +363,7 @@ function generateCollisionFile(
   rootDir: string,
   generatedFile: string,
   typesFile: string,
+  options: GenerateOptions,
 ): string {
   const firstTemplate = templates[0];
   if (!firstTemplate) {
@@ -314,6 +372,7 @@ function generateCollisionFile(
   const functionName = firstTemplate.functionName;
   const pascalName = toPascalCase(functionName);
   const buildFnName = buildFunctionName(functionName);
+  const sourceMode = templateSourceMode(options);
 
   const lines: string[] = [
     referenceDirective(generatedFile, typesFile),
@@ -327,15 +386,24 @@ function generateCollisionFile(
     ...syntaxCommentLines(),
     ``,
     `import { renderTemplate } from "the-prompting-library/runtime";`,
+    ...templateSourceRuntimeImports(sourceMode),
   ];
 
   templates.forEach((t, i) => {
-    lines.push(
-      `import TEMPLATE_${i + 1} from "${relativeImport(
-        dirname(generatedFile),
-        t.filePath,
-      )}" with { type: "text" };`,
-    );
+    if (sourceMode === "import") {
+      lines.push(
+        templateDeclarationLine(`TEMPLATE_${i + 1}`, t, generatedFile, options),
+      );
+    }
+  });
+
+  lines.push(``);
+  templates.forEach((t, i) => {
+    if (sourceMode !== "import") {
+      lines.push(
+        templateDeclarationLine(`TEMPLATE_${i + 1}`, t, generatedFile, options),
+      );
+    }
   });
 
   templates.forEach((t, i) => {
@@ -607,6 +675,7 @@ export function generateFiles(
             rootDir,
             generatedFilePath(template),
             typesFile,
+            options,
           ),
         );
       }

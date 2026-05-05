@@ -2,12 +2,22 @@
 
 All notable changes to this project are documented here.
 
-## 0.9.0 - 2026-05-04
+## 0.10.0 - 2026-05-05
+
+### Changed
+
+- Generated prompt builders now read template text from the colocated `.tpl.*` file by default instead of importing it with `with { type: "text" }`. This keeps prompt text single-sourced while avoiding Next/Turbopack and other framework loader gaps where source template imports can resolve to `undefined` at runtime.
+
+### Migration Notes
+
+- This default generated loader is server-only because it uses `node:fs` and `node:url`. Browser, edge, or bundle-only environments should set `"templateSource": "import"` to preserve the previous import-based behavior, or `"templateSource": "inline"` only when duplicating prompt text in generated files is acceptable.
 
 ### Added
 
 - **`{{#switch discriminant}}` … `{{/switch}}`** — multi-way template branching with `{{#case "literal"}}` … `{{/case}}` (also single-quoted or bare word literals), optional `{{#default}}` … `{{/default}}`. The first case whose literal equals the discriminant wins (`String(value)` for defined non-null values; **`undefined` / `null` match only `{{#case ""}}`**). Otherwise the default branch is used if present. `renderTemplate` alternates `#if` and `#switch` passes until stable so switches inside falsy conditionals are not expanded, while `#if` inside a chosen case still runs after the switch resolves.
 - Parser records the switch discriminant like any other name: it becomes a **required `string`** only when that name is not already present from `{{var}}` / `{{var:type}}` or from a **condition-only** `{{#if name}}` (which infers optional `boolean` first—the discriminant clause does not override that).
+- Added `templateSource` config with `"filesystem"` (default), `"import"`, and `"inline"` modes. `"import"` preserves the previous source-import behavior, while `"inline"` remains available for environments that cannot read sibling template files at runtime.
+- Added `templateImportAttributeType` config for import mode, supporting `"text"` and `"raw"` import attributes.
 
 ## 0.8.0 - 2026-05-04
 

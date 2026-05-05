@@ -338,6 +338,12 @@ export function renderTemplate<T extends object>(
   vars: T,
   partials?: Record<string, string>,
 ): string {
+  if (typeof content !== "string") {
+    throw new TypeError(
+      'TPL template source must be a string. If this came from a generated template import, your bundler may not be loading .tpl.* files as text. Use templateSource: "filesystem" or configure a text/raw-file loader.',
+    );
+  }
+
   const flat = flattenVars(vars);
 
   // Strip frontmatter from the raw file content

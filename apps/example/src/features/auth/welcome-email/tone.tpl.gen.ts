@@ -11,7 +11,10 @@
 // Docs: https://github.com/timurkr/tpl
 
 import { renderTemplate } from "the-prompting-library/runtime";
-import TEMPLATE from "./tone.tpl.md" with { type: "text" };
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
+const TEMPLATE = readFileSync(fileURLToPath(new URL("./tone.tpl.md", import.meta.url)), "utf8");
 
 /**
  * @source src/features/auth/welcome-email/tone.tpl.md

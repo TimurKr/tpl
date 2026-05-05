@@ -11,9 +11,12 @@
 // Docs: https://github.com/timurkr/tpl
 
 import { renderTemplate } from "the-prompting-library/runtime";
-import TEMPLATE from "./ticket-summary.tpl.md" with { type: "text" };
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { buildSharedAssistantPrompt } from "../../shared/assistant.tpl.gen.js";
 import type { SharedAssistantVariables } from "../../shared/assistant.tpl.gen.js";
+
+const TEMPLATE = readFileSync(fileURLToPath(new URL("./ticket-summary.tpl.md", import.meta.url)), "utf8");
 
 /**
  * Summarize a resolved support ticket

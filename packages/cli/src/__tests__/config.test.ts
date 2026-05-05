@@ -141,12 +141,16 @@ describe("buildOptions", () => {
     });
   });
 
-  it("passes through importSpecifierExtension and postprocess", () => {
+  it("passes through generation options", () => {
     const opts = buildOptions("/project", {
       importSpecifierExtension: "ts",
+      templateSource: "filesystem",
+      templateImportAttributeType: "raw",
       postprocess: "./scripts/tpl-postprocess.mjs",
     });
     expect(opts.importSpecifierExtension).toBe("ts");
+    expect(opts.templateSource).toBe("filesystem");
+    expect(opts.templateImportAttributeType).toBe("raw");
     expect(opts.postprocess).toBe("./scripts/tpl-postprocess.mjs");
   });
 });

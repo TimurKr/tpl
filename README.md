@@ -523,6 +523,7 @@ Zero config by default. Add a `tpl` key to `package.json` only when you want to 
     "output": "lib/tpl.gen.ts",
     "pattern": "**/*.tpl.{md,mdx,txt,html}",
     "ignore": ["src/vendor/**"],
+    "templateSource": "filesystem",
     "namespaceAliases": {
       "src/app": "",
       "_prompts": ""
@@ -536,6 +537,7 @@ Defaults:
 - `output`: `lib/tpl.gen.ts`
 - `pattern`: `**/*.tpl.{md,mdx,txt,html}`
 - `ignore`: `[]`
+- `templateSource`: `filesystem`
 - `namespaceAliases`: `{}`
 
 Always ignored: `node_modules`, `dist`, `.git`.
@@ -552,15 +554,40 @@ import { prompts } from "./lib/tpl.gen.js";
 
 With TypeScript `Node16` / `NodeNext`, this is correct: TypeScript resolves the `.js` specifier to the `.ts` file during development, and emitted relative imports stay valid in strict ESM.
 
-Generated prompt modules import source templates as text:
+Generated prompt modules read source templates from the filesystem by default, so the `.tpl.*` file remains the single source of truth and framework bundlers do not need `.tpl.md` text-loader configuration:
 
 ```typescript
-import TEMPLATE from "./welcome-email.tpl.md" with { type: "text" };
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
+const TEMPLATE = readFileSync(
+  fileURLToPath(new URL("./welcome-email.tpl.md", import.meta.url)),
+  "utf8",
+);
 ```
 
-TPL also generates `tpl.d.ts` so TypeScript understands `.tpl.md`, `.tpl.mdx`, `.tpl.txt`, and `.tpl.html` imports. Generated files reference it automatically, but a separate TypeScript project that imports source across package boundaries may still need to include that file or define equivalent ambient declarations.
+This default is server-only. If you prefer source imports, configure `templateSource: "import"`. You can also set `templateImportAttributeType` to `"text"` or `"raw"`:
 
-Your runtime or bundler still needs to load those template files as text. Bun supports this style directly; framework setup may need a text/raw-file loader.
+```json
+{
+  "tpl": {
+    "templateSource": "import",
+    "templateImportAttributeType": "raw"
+  }
+}
+```
+
+That mode generates imports like:
+
+```typescript
+import TEMPLATE from "./welcome-email.tpl.md" with { type: "raw" };
+```
+
+Your runtime or bundler needs to load those template files as text. Bun supports import attributes directly; framework setup may need a text/raw-file loader.
+
+For environments where file reads are not available and bundler imports are not desired, `templateSource: "inline"` embeds prompt text directly in generated files. That is the most portable runtime shape, but duplicates prompt text, so use it only when that tradeoff is acceptable.
+
+TPL also generates `tpl.d.ts` so TypeScript understands `.tpl.md`, `.tpl.mdx`, `.tpl.txt`, and `.tpl.html` imports when import mode is used. Generated files reference it automatically, but a separate TypeScript project that imports source across package boundaries may still need to include that file or define equivalent ambient declarations.
 
 ## Why Not Just Use Strings?
 

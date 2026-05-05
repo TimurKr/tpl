@@ -1,6 +1,6 @@
 {
   "name": "the-prompting-library",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "The Prompting Library — drop .tpl.md files, get fully-typed TypeScript functions.",
   "type": "module",
   "bin": {

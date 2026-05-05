@@ -131,7 +131,7 @@ describe("collector", () => {
       expect(manifest).toContain("export const prompts");
     });
 
-    it("each prompt file imports the source .tpl.md and uses renderTemplate", async () => {
+    it("each prompt file reads the source .tpl.md and uses renderTemplate", async () => {
       await writeTemplate("src/greet.tpl.md", "Hello {{name}}");
       const out = outputFile();
 
@@ -144,9 +144,9 @@ describe("collector", () => {
       expect(content).toContain("export function buildGreetPrompt");
       expect(content).toContain("AUTO-GENERATED");
       expect(content).toContain("renderTemplate");
-      expect(content).toContain(`import TEMPLATE from`);
-      expect(content).toContain(`.tpl.md" with { type: "text" }`);
-      expect(content).not.toContain("const TEMPLATE");
+      expect(content).toContain(`readFileSync`);
+      expect(content).toContain(`new URL("./greet.tpl.md", import.meta.url)`);
+      expect(content).not.toContain(`import TEMPLATE from`);
     });
 
     it("generates tpl.d.ts with ambient module declaration", async () => {
@@ -395,9 +395,8 @@ describe("collector", () => {
       expect(promptFile).toContain("export interface WelcomeEmailVariables");
       expect(promptFile).toContain("export function buildWelcomeEmailPrompt");
       expect(promptFile).toContain("renderTemplate(TEMPLATE, vars)");
-      expect(promptFile).toContain(`import TEMPLATE from`);
-      expect(promptFile).toContain(`.tpl.md" with { type: "text" }`);
-      expect(promptFile).not.toContain("const TEMPLATE");
+      expect(promptFile).toContain(`readFileSync`);
+      expect(promptFile).not.toContain(`import TEMPLATE from`);
 
       const index = await readFile(out, "utf-8");
       expect(index).toContain("export const prompts");
