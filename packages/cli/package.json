@@ -1,6 +1,6 @@
 {
   "name": "the-prompting-library",
-  "version": "0.11.0",
+  "version": "0.11.1",
   "description": "The Prompting Library — drop .tpl.md files, get fully-typed TypeScript functions.",
   "type": "module",
   "bin": {
@@ -8,8 +8,10 @@
   },
   "exports": {
     "./runtime": {
+      "types": "./dist/runtime.d.ts",
       "import": "./dist/runtime.js",
-      "types": "./dist/runtime.d.ts"
+      "require": "./dist/runtime.cjs",
+      "default": "./dist/runtime.js"
     }
   },
   "files": [

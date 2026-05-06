@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented here.
 
+## 0.11.1 - 2026-05-06
+
+### Fixed
+
+- `the-prompting-library/runtime` and `@tpl/core/runtime` now publish `require` and `default` export conditions alongside `import` and `types`, so generated prompt files resolve in CommonJS-adjacent loaders such as `tsx`-backed Promptfoo providers without requiring `NODE_OPTIONS="--conditions=import"`.
+- `@tpl/core` now also exposes a root `default` export condition for mixed-loader compatibility.
+- The runtime entry is now built as both ESM (`dist/runtime.js`) and CommonJS (`dist/runtime.cjs`) in the public package and `@tpl/core`, improving compatibility across Node, Bun, TS loaders, and mixed module environments.
+
 ## 0.11.0 - 2026-05-05
 
 ### Added

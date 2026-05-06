@@ -13,12 +13,12 @@ export default defineConfig([
     noExternal: ["@tpl/core"],
     banner: { js: "#!/usr/bin/env node" },
   },
-  // Runtime entry — ESM library imported by generated prompt files.
+  // Runtime entry — dual-format library imported by generated prompt files.
   // Bundle only @tpl/core/runtime so fast-glob and other generator deps never
   // enter app/browser bundles (see packages/core package.json "exports").
   {
     entry: { runtime: "src/runtime.ts" },
-    format: ["esm"],
+    format: ["esm", "cjs"],
     platform: "neutral",
     dts: true,
     sourcemap: true,
